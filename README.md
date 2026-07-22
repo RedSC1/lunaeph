@@ -65,8 +65,8 @@ chart.reset_orb(60)          # back to default
 ```python
 from lunaeph import calculate_chart, HouseSystem
 
-chart = calculate_chart(1990, 1, 1, 12, 0,
-                        latitude_deg=51.5, longitude_deg=-0.1,
+chart = calculate_chart(2003, 3, 13, 14, 15, 0, tz=8.0,
+                        latitude_deg=37.45, longitude_deg=118.49,
                         house_system=HouseSystem.KOCH)
 
 for i in range(1, 13):
@@ -81,8 +81,11 @@ chart.set_orb(100, 1.5)  # custom angle → 1.5°
 ### Relationship charts
 
 ```python
-a = calculate_chart(1990, 1, 1, 12, 0, latitude_deg=51.5, longitude_deg=-0.1)
-b = calculate_chart(1992, 6, 15, 18, 30, latitude_deg=40.7, longitude_deg=-74.0)
+# Dongying native (2003-03-13) × a friend (2002-12-01)
+a = calculate_chart(2003, 3, 13, 14, 15, 0, tz=8.0,
+                    latitude_deg=37.45, longitude_deg=118.49)
+b = calculate_chart(2002, 12, 1, 8, 30, 0, tz=8.0,
+                    latitude_deg=36.0, longitude_deg=120.0)
 
 syn = a.synastry_with(b)                # cross-chart aspects + house placements
 comp = a.composite_with(b)              # midpoint composite
@@ -103,13 +106,14 @@ for entry in syn["cross_aspects"][:5]:
 ### Progressions & returns
 
 ```python
-chart = calculate_chart(1990, 1, 1, 12, 0, latitude_deg=51.5, longitude_deg=-0.1)
+chart = calculate_chart(2003, 3, 13, 14, 15, 0, tz=8.0,
+                        latitude_deg=37.45, longitude_deg=118.49)
 
-prog  = chart.secondary_progression(years=30.0)  # 1 day = 1 year
-tert  = chart.tertiary_progression(years=30.0)   # Tertiary I
-sa    = chart.solar_arc(years=30.0)              # True Solar Arc
-sr25  = chart.solar_return(2025)                 # Solar Return for 2025
-lr    = chart.lunar_return(2025, 3)              # Lunar Return for Mar 2025
+prog  = chart.secondary_progression(years=20.0)  # 1 day = 1 year (age 20)
+tert  = chart.tertiary_progression(years=20.0)   # Tertiary I
+sa    = chart.solar_arc(years=20.0)              # True Solar Arc
+sr23  = chart.solar_return(2023)                 # Solar Return for 2023
+lr    = chart.lunar_return(2023, 3)              # Lunar Return for Mar 2023
 ```
 
 ### Classical techniques
