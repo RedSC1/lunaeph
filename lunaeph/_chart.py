@@ -233,8 +233,10 @@ def calculate_chart(
             earth_pos_au[2] + geo_au[2],
         ))
 
-        # J2000 ecliptic → true ecliptic of date
-        ecl_date = j2000_ecliptic_to_date(geo_au, jd_tt)
+        # ICRF equatorial → J2000 ecliptic → true ecliptic of date
+        from ._precession import rotate_equator_to_ecliptic, _J2000_OBLIQUITY_RAD
+        geo_ecl = rotate_equator_to_ecliptic(geo_au, _J2000_OBLIQUITY_RAD)
+        ecl_date = j2000_ecliptic_to_date(geo_ecl, jd_tt)
 
         # Spherical
         x, y, z = ecl_date
