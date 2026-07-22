@@ -23,11 +23,16 @@ PLANETARY_ORBS_OF_LIGHT = {
     "mars": 8.0,       # Half = 4.0°
     "venus": 7.0,      # Half = 3.5°
     "mercury": 7.0,    # Half = 3.5°
+    "uranus": 5.0,     # Half = 2.5°
+    "neptune": 5.0,    # Half = 2.5°
+    "pluto": 5.0,      # Half = 2.5°
+    "chiron": 3.0,     # Half = 1.5°
 }
 
 PLANET_SYMBOLS = {
     "sun": "☉", "moon": "☽", "mercury": "☿", "venus": "♀",
-    "mars": "♂", "jupiter": "♃", "saturn": "♄"
+    "mars": "♂", "jupiter": "♃", "saturn": "♄",
+    "uranus": "♅", "neptune": "♆", "pluto": "♇", "chiron": "⚷"
 }
 
 def get_moiety_of_orbs(planet1: str, planet2: str) -> float:
@@ -41,8 +46,8 @@ def get_moiety_of_orbs(planet1: str, planet2: str) -> float:
     orb2 = PLANETARY_ORBS_OF_LIGHT.get(p2, 6.0)
     return (orb1 + orb2) / 2.0
 
-def get_active_aspects_for_planet(chart_data: Dict[str, Any], target_planet: str) -> List[Dict[str, Any]]:
-    """Find all active classical aspects received by target_planet."""
+def get_active_aspects_for_planet(chart_data: Dict[str, Any], target_planet: str, include_modern: bool = False) -> List[Dict[str, Any]]:
+    """Find all active classical/modern aspects received by target_planet."""
     planets = chart_data["planets"]
     target_key = target_planet.lower()
     if target_key not in planets:
@@ -51,7 +56,11 @@ def get_active_aspects_for_planet(chart_data: Dict[str, Any], target_planet: str
     t_lon = math.degrees(planets[target_key]["longitude_rad"])
     aspects = []
     
-    for other_key in TRADITIONAL_PLANETS:
+    candidate_keys = list(TRADITIONAL_PLANETS)
+    if include_modern:
+        candidate_keys.extend(["uranus", "neptune", "pluto", "chiron"])
+    
+    for other_key in candidate_keys:
         if other_key == target_key or other_key not in planets:
             continue
         o_lon = math.degrees(planets[other_key]["longitude_rad"])
@@ -75,7 +84,7 @@ def get_active_aspects_for_planet(chart_data: Dict[str, Any], target_planet: str
                 
     return aspects
 
-def calc_besiegement(chart_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+def calc_besiegement(chart_data: Dict[str, Any], include_modern: bool = False) -> List[Dict[str, Any]]:
     """
     Calculate Besiegement by Light/Aspects (光线/相位围攻).
     Occurs when a target planet receives active aspects from two planets simultaneously.
@@ -83,7 +92,11 @@ def calc_besiegement(chart_data: Dict[str, Any]) -> List[Dict[str, Any]]:
     planets = chart_data["planets"]
     besiegements = []
     
-    for p_key in ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn"]:
+    candidate_targets = list(TRADITIONAL_PLANETS)
+    if include_modern:
+        candidate_targets.extend(["uranus", "neptune", "pluto", "chiron"])
+        
+    for p_key in candidate_targets:
         if p_key not in planets:
             continue
         p = planets[p_key]
@@ -93,7 +106,7 @@ def calc_besiegement(chart_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         deg_d = int(deg)
         pos_str = f"{sign} {deg_d}°{deg_m:02d}'"
         
-        aspects = get_active_aspects_for_planet(chart_data, p_key)
+        aspects = get_active_aspects_for_planet(chart_data, p_key, include_modern=include_modern)
         
         # Pairs of aspects form a besiegement
         n = len(aspects)
@@ -117,7 +130,7 @@ def calc_besiegement(chart_data: Dict[str, Any]) -> List[Dict[str, Any]]:
                 
     return besiegements
 
-def calc_translation_of_light(chart_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+def calc_translation_of_light(chart_data: Dict[str, Any], include_modern: bool = False) -> List[Dict[str, Any]]:
     """
     Calculate Translation of Light (传光 / 光线传递).
     Occurs when a fast-moving planet (e.g. Moon) separates from aspecting Planet A
@@ -125,6 +138,10 @@ def calc_translation_of_light(chart_data: Dict[str, Any]) -> List[Dict[str, Any]
     """
     planets = chart_data["planets"]
     translations = []
+    
+    candidate_others = list(TRADITIONAL_PLANETS)
+    if include_modern:
+        candidate_others.extend(["uranus", "neptune", "pluto", "chiron"])
     
     for fast_key in ["moon", "mercury", "venus"]:
         if fast_key not in planets:
@@ -135,7 +152,7 @@ def calc_translation_of_light(chart_data: Dict[str, Any]) -> List[Dict[str, Any]
         separating_from = []
         applying_to = []
         
-        for other_key in TRADITIONAL_PLANETS:
+        for other_key in candidate_others:
             if other_key == fast_key or other_key not in planets:
                 continue
             other_p = planets[other_key]
@@ -170,7 +187,7 @@ def calc_translation_of_light(chart_data: Dict[str, Any]) -> List[Dict[str, Any]
                     
     return translations
 
-def calc_collection_of_light(chart_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+def calc_collection_of_light(chart_data: Dict[str, Any], include_modern: bool = False) -> List[Dict[str, Any]]:
     """
     Calculate Collection of Light (聚光 / 光线汇聚/收集).
     Occurs when a planet collects light/aspects from multiple other planets.
@@ -178,11 +195,15 @@ def calc_collection_of_light(chart_data: Dict[str, Any]) -> List[Dict[str, Any]]
     planets = chart_data["planets"]
     collections = []
     
-    for collector_key in ["sun", "jupiter", "saturn", "mars"]:
+    candidate_collectors = ["sun", "jupiter", "saturn", "mars"]
+    if include_modern:
+        candidate_collectors.extend(["uranus", "neptune", "pluto"])
+        
+    for collector_key in candidate_collectors:
         if collector_key not in planets:
             continue
         c_p = planets[collector_key]
-        aspects = get_active_aspects_for_planet(chart_data, collector_key)
+        aspects = get_active_aspects_for_planet(chart_data, collector_key, include_modern=include_modern)
         
         if len(aspects) >= 2:
             sources = [a["symbol"] for a in aspects]
@@ -196,7 +217,7 @@ def calc_collection_of_light(chart_data: Dict[str, Any]) -> List[Dict[str, Any]]
 
     return collections
 
-def calc_prohibition(chart_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+def calc_prohibition(chart_data: Dict[str, Any], include_modern: bool = False) -> List[Dict[str, Any]]:
     """
     Calculate Prohibition / Interception (阻隔 / 绝光).
     Occurs when two planets apply to aspect each other, but a heavier/malefic planet intervenes.
