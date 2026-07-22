@@ -276,6 +276,10 @@ def calculate_chart(
         lon2 = math.atan2(y2, x2) % (2.0 * math.pi)
         body_rates[key] = (lon2 - body_lons[key]) / dt
 
+    # tag retrograde
+    for key, p in planets.items():
+        p["retrograde"] = body_rates.get(key, 0.0) < 0.0
+
     # --- aspects ---
     aspects = find_all_aspects(body_lons, body_rates=body_rates)
 
