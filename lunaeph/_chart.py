@@ -68,6 +68,7 @@ def calculate_chart(
     latitude_deg: float = 0.0,
     longitude_deg: float = 0.0,
     house_system: HouseSystem = HouseSystem.PLACIDUS,
+    aspect_orbs: dict[str, float] | None = None,
     taiyin_position_fn: Callable[[float, int], tuple[float, float, float]]
         | None = None,
     taiyin_velocity_fn: Callable[[float, int], tuple[float, float, float]]
@@ -174,7 +175,7 @@ def calculate_chart(
 
     # --- aspects ---
     body_lons = {k: p["longitude_rad"] for k, p in planets.items()}
-    aspects = find_aspects(body_lons)
+    aspects = find_aspects(body_lons, orbs=aspect_orbs)
 
     # --- assemble ---
     y, mo, d, h, mi, s = jd_to_calendar(jd_utc)
