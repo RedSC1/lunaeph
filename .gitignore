@@ -1,0 +1,41 @@
+# macOS
+.DS_Store
+
+# Claude
+.claude/
+CLAUDE.md
+
+# Project planning
+PLAN.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.whl
+*.tar.gz
+.eggs/
+*.so
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Misc
+*.log
+.env
