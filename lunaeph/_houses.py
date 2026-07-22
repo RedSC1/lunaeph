@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import enum
 import math
+from typing import Callable
 
 from ._time import TWO_PI
 
@@ -286,7 +287,7 @@ def _eval_alcabitius(armc: float, obl: float, lat: float,
 # Registry — extensible
 # ---------------------------------------------------------------------------
 
-_EVALUATORS: dict[HouseSystem, callable] = {
+_EVALUATORS: dict[HouseSystem, Callable[..., bool]] = {
     HouseSystem.PLACIDUS:      _eval_placidus,
     HouseSystem.KOCH:          _eval_koch,
     HouseSystem.WHOLE_SIGN:    _eval_whole_sign,
@@ -298,7 +299,7 @@ _EVALUATORS: dict[HouseSystem, callable] = {
 }
 
 
-def register_house_system(system: HouseSystem, evaluator: callable) -> None:
+def register_house_system(system: HouseSystem, evaluator: Callable[..., bool]) -> None:
     """Register a custom house system evaluator.
 
     evaluator receives (armc_rad, obliquity_rad, latitude_rad,
