@@ -160,9 +160,9 @@ def calculate_chart(
     Returns a Chart (dict subclass) with planets, houses, aspects.
     """
     # --- time ---
-    # Convert local time → UTC
-    utc_hour = hour - tz
-    jd_utc = calendar_to_jd(year, month, day, utc_hour, minute, second)
+    # Convert local time → UTC: compute JD in local, then shift by tz
+    jd_local = calendar_to_jd(year, month, day, hour, minute, second)
+    jd_utc = jd_local - tz / 24.0
     jd_tt = jd_ut1_to_tt(jd_utc)  # approximation: UTC≈UT1
 
     lat_rad = math.radians(latitude_deg)
