@@ -79,8 +79,9 @@ def vertex_rad(armc_rad: float, obliquity_rad: float,
     return vx
 
 
-def east_point_rad(armc_rad: float) -> float:
-    return _norm(armc_rad + _HALF_PI)
+def east_point_rad(armc_rad: float, obliquity_rad: float) -> float:
+    """East point = ascendant at the equator (latitude = 0)."""
+    return ascendant_rad(armc_rad, obliquity_rad, 0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -378,7 +379,7 @@ def calc_houses(
         "ascendant_rad": asc,
         "midheaven_rad": mc,
         "vertex_rad": vertex_rad(armc, true_obliquity_rad, observer_lat_rad),
-        "east_point_rad": east_point_rad(armc),
+        "east_point_rad": east_point_rad(armc, true_obliquity_rad),
         "cusps_rad": cusps,
     }
 
