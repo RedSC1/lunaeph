@@ -1,6 +1,7 @@
 # LunaEph
 
-A thin, pure-Python western astrology library built on top of
+A pure-Python astrology library — western tropical, Indian sidereal, and
+classical medieval techniques — built on top of
 [taiyin-ephemeris-semi-analytic](https://pypi.org/project/taiyin-ephemeris-semi-analytic/).
 
 Pure Python.  Zero native C/C++ dependencies (`pip install` and go).  Covers −3000 to +3000.
@@ -16,168 +17,238 @@ chart = calculate_chart(
     latitude_deg=37.45,                # Dongying, Shandong
     longitude_deg=118.49,
 )
-```
 
-`chart` is a dict-like `Chart` object.  Access everything by key or
-convenience accessors:
-
-```python
 # Planets
-chart.planet("sun")          # {'name': 'Sun', 'sign': 'Pisces',
-                              #  'degree': 22, 'minute': 15,
-                              #  'retrograde': False, ...}
+chart.planet("sun")          # {'name': 'Sun', 'sign': 'Pisces', 'degree': 22, ...}
 chart.planets                # ['sun', 'moon', 'mercury', ...]
 
 # Houses
 chart.ascendant              # {'sign': 'Leo', 'degree': 5, 'minute': 32}
 chart.midheaven              # {'sign': 'Aries', 'degree': 24, 'minute': 31}
-chart.house_cusp(1)          # same as ascendant
 
 # Aspects
-chart["aspects"]             # flat list of all aspect entries
 chart.aspects_to("moon")     # filter by body
 chart.aspects_between("sun", "moon")
 
-# Tuning
-chart.set_orb(60, 1.0)       # sextile → 1 degree orb
-chart.set_orb(100, 2.0)      # custom angle
+# Custom orbs
+chart.set_orb(60, 1.0)       # sextile → 1° orb
 chart.reset_orb(60)          # back to default
 ```
 
-### Relationship & Predictive Charts
+## Feature overview
+
+| Category | What | Detail |
+|---|---|---|
+| **Planets** | 10 bodies + lunar nodes + Lilith | Sun through Pluto, True/Mean Node, True/Mean Lilith |
+| **Houses** | 8 systems | Placidus, Koch, Whole Sign, Equal, Porphyry, Regiomontanus, Campanus, Alcabitius |
+| **Aspects** | 12 angles + custom | Conjunction, opposition, trine, square, sextile, quincunx, semisextile, semisquare, sesquiquadrate, quintile, biquintile, decile; applying/separating via true velocity |
+| **Signs** | Tropical + sidereal | 12 tropical signs (element/modality/triplicity); 6 ayanamshas (Lahiri, Fagan-Bradley, Raman, Krishnamurti, Yukteswar, True Chitra) |
+| **Dignities** | Essential + accidental | Domicile, detriment, exaltation, fall, Dorothean triplicities, Chaldean faces, Ptolemaic & Egyptian terms, sect, combustion, cazimi |
+| **Lots** | Hellenistic / Arabic Parts | Fortune, Spirit, Eros, Nemesis, Victory, Courage, Necessity, and more |
+| **Relationship** | Synastry, Composite, Davison | Cross-chart aspects + house overlays; midpoint composite; time/space Davison |
+| **Predictive** | Progressions + directions | Secondary, Tertiary I & II, Minor; True Solar Arc; Naibod direction |
+| **Returns** | Solar + Lunar Returns | Exact Brent root-finding on true ecliptic longitude recurrence |
+| **Medieval** | Almuten, Firdaria, ZR, Profections, Primary Directions | Ibn Ezra / Bonatti / Lilly schools; Valens/Brennan ZR; Naibod/Ptolemy keys |
+| **Jyotish** | Nakshatra, Dasha, Vargas, Karakas | 27/28 Nakshatras with Ashta Kuta; Vimshottari (5-level) & Yogini Dasha; 16 Vargas (D1–D60); Chara/Sthira/Naisargika Karakas |
+| **Jyotish II** | Ashtakavarga, Arudha, Upagraha, KP | Sarvashtakavarga; Jaimini Arudha Padas; 5 Upagrahas; KP sub-lord; Panchadha Maitri |
+| **Time utils** | EoT, sunrise/sunset, syzygy | Equation of time; WGS84 ellipsoid + hybrid Bennett/Smart refraction; new/full moon sequence; apparent solar time |
+
+## Western astrology
+
+### Houses & signs
 
 ```python
-chart_a = calculate_chart(1990, 1, 1, 12, 0, latitude_deg=51.5, longitude_deg=-0.1)
-chart_b = calculate_chart(1992, 6, 15, 18, 30, latitude_deg=40.7, longitude_deg=-74.0)
+from lunaeph import calculate_chart, HouseSystem
 
-# Synastry (Cross-chart aspects + house placements)
-syn = chart_a.synastry_with(chart_b)
+chart = calculate_chart(2003, 3, 13, 14, 15, 0, tz=8.0,
+                        latitude_deg=37.45, longitude_deg=118.49,
+                        house_system=HouseSystem.KOCH)
 
-# Midpoint Composite Chart
-comp = chart_a.composite_with(chart_b)
+for i in range(1, 13):
+    cusp = chart.house_cusp(i)
+    print(f"House {i:2d}: {cusp['sign_abbrev']:>3s} {cusp['degree']:2d}°{cusp['minute']:02d}'")
 
-# Davison Time & Space Midpoint Chart
-dav = chart_a.davison_with(chart_b, mode="spherical") # or mode="arithmetic"
-
-# Progressions & Directions
-prog = chart_a.secondary_progression(years=30.0)      # 1 day = 1 year (Age 30 = +30 days)
-tert = chart_a.tertiary_progression(years=30.0)       # Tertiary I (1 day = 1 tropical month)
-minor = chart_a.minor_progression(years=30.0)         # Minor (1 synodic month = 1 year of life)
-sa = chart_a.solar_arc(years=30.0)                    # True Solar Arc (secondary Sun delta)
-naibod = chart_a.naibod_direction(years=30.0)         # Naibod Arc (0.9856°/year)
-
-# Solar & Lunar Returns (Exact root finding)
-sr = chart_a.solar_return(2025)
-lr = chart_a.lunar_return(2025, 3)
-
-# Derived Compositions
-comp_prog = chart_a.composite_secondary(chart_b, 30.0)
-dav_tert = chart_a.davison_tertiary(chart_b, 30.0)
-marks = chart_a.marks_secondary(chart_b, 30.0)
+# Custom orbs
+chart.set_orb(72, 2.0)   # quintile → 2°
+chart.set_orb(100, 1.5)  # custom angle → 1.5°
 ```
 
-## Demo output
+### Relationship charts
 
-```
-┌──────────┬───────────────┬──────┬────┬────┐
-│ Planet   │ Position      │ Sign │ H  │ R  │
-├──────────┼───────────────┼──────┼────┼────┤
-│ Sun      │ Pis 22°15'    │ Pis  │  8 │    │
-│ Moon     │ Can 14°46'    │ Can  │ 12 │    │
-│ Mercury  │ Pis 14°17'    │ Pis  │  8 │    │
-│ Venus    │ Aqu 12°42'    │ Aqu  │  7 │    │
-│ Mars     │ Cap  5°19'    │ Cap  │  6 │    │
-│ Jupiter  │ Leo  8°49'    │ Leo  │  1 │ ℞  │
-│ Saturn   │ Gem 22°28'    │ Gem  │ 11 │    │
-│ Uranus   │ Pis  0°08'    │ Pis  │  8 │    │
-│ Neptune  │ Aqu 12°08'    │ Aqu  │  7 │    │
-│ Pluto    │ Sag 19°55'    │ Sag  │  5 │    │
-├──────────┼───────────────┼──────┼────┼────┤
-│ ASC      │ Leo  5°32'    │ Leo  │  1 │    │
-│ MC       │ Ari 24°31'    │ Ari  │ 10 │    │
-└──────────┴───────────────┴──────┴────┴────┘
+```python
+a = calculate_chart(1990, 1, 1, 12, 0, latitude_deg=51.5, longitude_deg=-0.1)
+b = calculate_chart(1992, 6, 15, 18, 30, latitude_deg=40.7, longitude_deg=-74.0)
 
-┌──────┬───────────────┐
-│ Hous │ Cusp          │
-├──────┼───────────────┤
-│    1 │ Leo  5°32'    │
-│    2 │ Leo 27°01'    │
-│    3 │ Vir 22°51'    │
-│    4 │ Lib 24°31'    │
-│    5 │ Sag  0°20'    │
-│    6 │ Cap  5°07'    │
-│    7 │ Aqu  5°32'    │
-│    8 │ Aqu 27°01'    │
-│    9 │ Pis 22°51'    │
-│   10 │ Ari 24°31'    │
-│   11 │ Gem  0°20'    │
-│   12 │ Can  5°07'    │
-└──────┴───────────────┘
-
-┌──────────┬──────────┬──────────────────┬───────┬──────┐
-│ Body 1   │ Body 2   │ Aspect           │  Orb  │ A/S  │
-├──────────┼──────────┼──────────────────┼───────┼──────┤
-│ Mercury  │ Sun      │ conjunction      │ 7.96° │ A    │
-│ Neptune  │ Venus    │ conjunction      │ 0.56° │ S    │
-│ Mercury  │ Pluto    │ square           │ 5.63° │ S    │
-│ Pluto    │ Sun      │ square           │ 2.33° │ S    │
-│ Saturn   │ Sun      │ square           │ 0.22° │ A    │
-│ Mercury  │ Moon     │ trine            │ 0.48° │ S    │
-│ Jupiter  │ Neptune  │ opposition       │ 3.32° │ A    │
-│ Jupiter  │ Venus    │ opposition       │ 3.88° │ A    │
-│ Pluto    │ Saturn   │ opposition       │ 2.55° │ A    │
-└──────────┴───────────────┴──────────────────┴───────┴──────┘
+syn = a.synastry_with(b)                # cross-chart aspects + house placements
+comp = a.composite_with(b)              # midpoint composite
+dav = a.davison_with(b, mode="spherical")  # Davison time/space chart
 ```
 
-## Features
+### Progressions & returns
 
-- **10 planets** — Sun, Moon, Mercury, Venus, Mars, Jupiter, Saturn, Uranus,
-  Neptune, Pluto — with retrograde detection
-- **12 aspect angles** — conjunction, opposition, trine, square, sextile,
-  quincunx, semisextile, semisquare, sesquiquadrate, quintile, biquintile,
-  decile (36°)
-- **Applying / separating** — using true-ecliptic-of-date longitude rates
-- **8 house systems** — Placidus (default), Koch, Whole Sign, Equal, Porphyry,
-  Regiomontanus, Campanus, Alcabitius — extensible registry
-- **Custom aspect angles** — `set_orb(70, 2.0)` — all angles are first-class
-- **Per-angle orb tuning** — `set_orb()` touches only that angle, others untouched
-- **Relationship charts** — Synastry, Composite, Davison
-- **Predictive charts** — Secondary progression, Tertiary progression I & Minor progression, True Solar Arc, Naibod direction, Solar Return, Lunar Return
-- **Zero external solver dependencies** — Pure Python Brent root finding for exact return recurrence
+```python
+chart = calculate_chart(1990, 1, 1, 12, 0, latitude_deg=51.5, longitude_deg=-0.1)
 
-## Astrological Conventions & Schools
+prog  = chart.secondary_progression(years=30.0)  # 1 day = 1 year
+tert  = chart.tertiary_progression(years=30.0)   # Tertiary I
+sa    = chart.solar_arc(years=30.0)              # True Solar Arc
+sr25  = chart.solar_return(2025)                 # Solar Return for 2025
+lr    = chart.lunar_return(2025, 3)              # Lunar Return for Mar 2025
+```
 
-| Feature | Method / Convention | Astrodienst / SwissEph Alignment |
-|---|---|---|
-| **Synastry** | Cross-chart aspects strictly between A and B; A-in-B and B-in-A house placements; bodies kept in distinct dictionary structures. | Astrodienst Synastry standard |
-| **Composite** | Short-arc circular midpoints for planets; 180° ambiguity resolved towards Ascendant; house cusps recalculated from composite ARMC midpoint & spherical midpoint location. | Hand (1975) / Astrodienst Composite convention |
-| **Davison** | Exact time midpoint; spherical 3D vector midpoint (default `mode="spherical"`) or arithmetic coordinate mean (`mode="arithmetic"`). | Davison Time/Space chart |
-| **Secondary Progression** | 1 ephemeris day per tropical year of life ($365.2421897$ days). Age 30 corresponds to $+30$ ephemeris days after birth. | Astrodienst Secondary Progression |
-| **Tertiary Progression I** | 1 ephemeris day = 1 tropical month of life (~$27.32158218$ days). | Astrodienst Tertiary I |
-| **Minor Progression** | 1 synodic month of life (~$29.530589$ days) = 1 ephemeris day (Tertiary II). | Astrodienst Minor Progression |
-| **Solar Arc** | True solar arc direction ($\Delta\lambda_{\odot} = \text{Sun}_{\text{progressed}} - \text{Sun}_{\text{natal}}$). | Astrodienst Solar Arc |
-| **Naibod Arc** | Fixed mean solar rate direction ($0.9856^\circ/\text{year}$). | Naibod direction option |
-| **Solar / Lunar Returns** | Pure-Python Brent's method solving exact true-ecliptic longitude recurrence ($< 10^{-5}$ rad error). | Astrodienst Solar/Lunar Return |
+### Classical techniques
 
-## Scope & Limitations
+```python
+# Almuten Figuris (Victor of the Chart)
+alm = chart.almuten_figuris()             # → 'venus', score 33
 
-- **Pure Python focus**: Designed for lightweight Python applications that cannot build native C/C++ extensions (`pyswisseph`).
-- **Celestial Bodies**: Currently includes 10 main planets. Lunar Nodes (True/Mean), Lilith, Chiron, and Fortuna are planned for v0.2.
-- **Ephemeris Range**: −3000 to +3000 (inherited from Vondrák 2011 precession & taiyin semi-analytic model).
+# Firdaria (Persian time-lord periods)
+from lunaeph import get_current_firdaria
+fird = chart.firdaria(age=33.5)           # active major & minor periods
+
+# Zodiacal Releasing (Valens)
+zr = chart.zodiacal_releasing(lot="spirit", age=33.5)
+
+# Annual / Monthly / Daily Profections
+prof = chart.profection(age=33.5)
+
+# Primary Directions (Naibod key)
+from lunaeph import calc_primary_directions
+dirs = chart.primary_directions(key="naibod")
+
+# Arabic Lots
+from lunaeph import calculate_lots
+lots = calculate_lots(asc_deg, sun_deg, moon_deg, ...)
+```
+
+## Indian / Vedic (Jyotish)
+
+### Nakshatras & compatibility
+
+```python
+from lunaeph import calc_nakshatra_chart, calc_nakshatra_compatibility, get_nakshatra_info
+
+# Planetary nakshatra placements (27 or 28 system)
+nak = chart.nakshatra_chart(ayanamsha_mode="lahiri", system="27")
+# → {'sun': {'nakshatra': 'Purva Bhadrapada', 'pada': 3, ...}, ...}
+
+# Ashta Kuta compatibility
+score = chart_a.nakshatra_compatibility(chart_b, ayanamsha_mode="lahiri")
+# → {'total': 24.5, 'varna': 1, 'vashya': 2, 'tara': 3, ...}
+
+# Single nakshatra info
+info = get_nakshatra_info("Rohini")
+# → {'lord': 'moon', 'deity': 'Brahma', 'gana': 'Manushya', ...}
+```
+
+### Dasha systems
+
+```python
+# Vimshottari Dasha (120-year, 5-level recursive)
+dasha = chart.vimshottari_dasha(age=20.35, ayanamsha_mode="lahiri")
+# → maha, antara, pratyantara, sookshma, prana breakdown
+
+# Yogini Dasha (36-year cycle)
+from lunaeph import calc_yogini_dasha
+yog = chart.yogini_dasha(age_years=20.35)
+
+# Convenience: current active period
+from lunaeph import get_current_dasha
+active = get_current_dasha(chart, age=20.35)
+```
+
+### Divisional charts (Vargas)
+
+```python
+# All 16 Vargas (D1 Rashi through D60 Shashtiamsha)
+from lunaeph import calculate_divisional_charts
+vargas = chart.divisional_charts(ayanamsha_mode="lahiri")
+# → D1, D2 Hora, D3 Drekkana, D4, D7, D9 Navamsha, D10, D12, D16,
+#   D20, D24, D27 Bhamsha, D30 Trimshamsha, D40, D45, D60
+```
+
+### More Jyotish tools
+
+```python
+# Jaimini Chara Karakas (7 or 8 planet scheme)
+k = chart.jaimini_chara_karakas(scheme="8_karaka")
+
+# Ashtakavarga (Sarvashtakavarga, max 337 bindus)
+av = chart.ashtakavarga()        # → bhinnashtakavarga per planet + sarva totals
+
+# Arudha Padas (A1–A12, including Upapada/UL)
+ap = chart.arudha_padas()        # → {'A1': ..., 'upapada': ...}
+
+# Sade Sati (Saturn 7.5-year transit)
+chart.sade_sati("Capricorn")     # is Saturn transiting over natal Moon?
+
+# Upagrahas (5 shadow planets)
+chart.upagrahas()                # → Dhuma, Vyatipata, Parivesha, Indrachapa, Upaketu
+
+# KP system
+chart.kp_sublord(planet="moon")  # → star-lord + sub-lord
+
+# All three karaka systems
+from lunaeph import calc_all_karakas
+all_k = chart.karakas()          # → Naisargika, Sthira, Chara
+```
+
+## Time & calendar utilities
+
+### Equation of time
+
+```python
+from lunaeph import equation_of_time_minutes, apparent_solar_time_minutes
+from lunaeph._time import calendar_to_jd
+
+jd = calendar_to_jd(2024, 11, 3, 12, 0, 0.0)
+eot = equation_of_time_minutes(jd)          # → +16.48 min (sundial ahead of clock)
+ast = apparent_solar_time_minutes(jd, lon_deg=116.4)  # → minutes since midnight
+```
+
+### Sunrise, sunset & twilight
+
+```python
+from lunaeph import sun_times
+
+times = sun_times(2003, 3, 13, lon_deg=118.49, lat_deg=37.45, tz=8.0)
+# → {'rise': JD, 'transit': JD, 'set': JD,
+#     'civil_dawn': JD, 'civil_dusk': JD,
+#     'nautical_dawn': JD, 'nautical_dusk': JD,
+#     'astron_dawn': JD, 'astron_dusk': JD}
+# Uses WGS84 ellipsoid + hybrid Bennett/Smart refraction model.
+# Also accepts height_m, pressure_mbar, temperature_c for precision.
+```
+
+### New & full moons
+
+```python
+from lunaeph import new_moons_between, full_moons_between, calendar_to_jd, jd_to_calendar
+
+jd1 = calendar_to_jd(2003, 1, 1)
+jd2 = calendar_to_jd(2004, 1, 1)
+
+for jd in new_moons_between(jd1, jd2):    # 12–13 per year
+    y, m, d, h, mi, s = jd_to_calendar(jd)
+    print(f"New moon: {y}-{m:02d}-{d:02d} {h:02d}:{mi:02d} UT")
+# Accuracy: < 5 minutes vs USNO across −3000 to +3000.
+```
 
 ## Astronomy
 
 | Correction | Model |
 |---|---|
+| Planetary ephemeris | taiyin semi-analytic (~0.2–3.7″ RMS vs DE441) |
 | Precession | Vondrák 2011 |
-| Nutation | IAU 2000B |
-| ΔT | Stephenson & Morrison (2004/2015) spline + annual table (Catmull-Rom) |
+| Nutation | IAU 2000B (77 lunisolar + planetary terms) |
+| ΔT | Stephenson & Morrison (2004/2015) spline + annual Catmull-Rom table |
 | Light-time | single-pass iteration |
 | Stellar aberration | special-relativistic velocity form |
-| Solar deflection | GR deflection vector formula |
+| Solar deflection | GR deflection vector |
+| Atmospheric refraction | Hybrid Bennett + Smart, scaled by P/T |
+| Earth shape | WGS84 ellipsoid (a=6378137 m, 1/f=298.257223563) |
 
-All models are hardcoded (no runtime data files), same philosophy as taiyin.
-Planetary positions inherit taiyin's precision (~0.2–3.7 arcsec RMS vs DE441).
+All models are hardcoded — no runtime data files, same philosophy as taiyin.
 
 ## Installation
 
