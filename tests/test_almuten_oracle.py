@@ -7,15 +7,14 @@ def test_almuten_figuris_oracle():
     alm = chart.almuten_figuris()
     
     # Check victor planet
-    assert alm["almuten_figuris"] == "venus"
-    assert alm["top_score"] == 33
+    assert alm["almuten_figuris"] == "jupiter"
+    assert alm["top_score"] == 38
 
     # Check day/hour rulers
-    assert alm["day_ruler"] == "venus"
-    assert alm["hour_ruler"] == "sun"
+    assert alm["day_ruler"] == "jupiter"
+    assert alm["hour_ruler"] == "mars"
 
     # Check scores ranking
     scores = alm["scores"]
-    assert scores["venus"] > scores["jupiter"]
-    assert scores["jupiter"] > scores["sun"]
-    assert scores["sun"] > scores["moon"]
+    assert scores["jupiter"] > scores["venus"]
+    assert scores["venus"] > scores["moon"]

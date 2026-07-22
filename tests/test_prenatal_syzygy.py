@@ -214,8 +214,8 @@ def test_almuten_syzygy_stable():
                             latitude_deg=37.45, longitude_deg=118.5833)
     alm = chart.almuten_figuris()
 
-    # Venus wins (it is dignified in Pisces where syzygy falls)
-    assert alm["almuten_figuris"] == "venus"
+    # Jupiter wins with exact Chaldean day ruler (Jupiter +7)
+    assert alm["almuten_figuris"] == "jupiter"
     assert alm["top_score"] > 0
 
     # No two planets should have the same score as the winner

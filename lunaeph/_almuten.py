@@ -19,20 +19,73 @@ DAY_RULERS = ["sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn"]
 # Planetary hours order (Chaldean sequence: Saturn -> Jupiter -> Mars -> Sun -> Venus -> Mercury -> Moon)
 CHALDEAN_HOUR_ORDER = ["saturn", "jupiter", "mars", "sun", "venus", "mercury", "moon"]
 
-def get_day_and_hour_rulers(jd_utc: float) -> tuple[str, str]:
-    """Calculate Chaldean Day Ruler and Hour Ruler for a given UTC Julian Day."""
-    # Day of week: 0 = Monday, 6 = Sunday (using standard Julian day modulo)
-    # JD 2451545.0 (2000-01-01 12:00 UTC) is Saturday
-    day_idx = int(math.floor(jd_utc + 1.5)) % 7
-    # Map Python weekday (0=Mon...6=Sun) to Chaldean
-    # Saturday = 6, Sunday = 0, Mon = 1, Tue = 2, Wed = 3, Thu = 4, Fri = 5
-    day_ruler = DAY_RULERS[(day_idx + 1) % 7]
+def get_day_and_hour_rulers(jd_utc: float, observer: dict | None = None, tz: float = 0.0) -> tuple[str, str]:
+    """Calculate Chaldean Day Ruler and Hour Ruler for a given UTC Julian Day and location."""
+    import datetime
+    from ._time import jd_to_calendar
     
-    # Hour ruler approximation based on 24-hour division
-    hour_of_day = int(((jd_utc + 0.5) % 1.0) * 24.0)
-    hour_ruler_start_idx = CHALDEAN_HOUR_ORDER.index(day_ruler)
-    hour_ruler = CHALDEAN_HOUR_ORDER[(hour_ruler_start_idx + hour_of_day) % 7]
+    # Get local calendar date and time
+    jd_local = jd_utc + (tz / 24.0)
+    y, mo, d, h, mi, s = jd_to_calendar(jd_local)
     
+    if observer and "lat_deg" in observer and "lon_deg" in observer:
+        from ._chart import sun_times
+        lat = observer["lat_deg"]
+        lon = observer["lon_deg"]
+        
+        st = sun_times(y, mo, d, lon, lat, tz=tz)
+        rise = st["rise"]
+        set_ = st["set"]
+        
+        if rise is not None and set_ is not None:
+            # Check if before local sunrise (belongs to previous astrological day)
+            if jd_utc < rise:
+                dt = datetime.date(y, mo, d) - datetime.timedelta(days=1)
+                st_prev = sun_times(dt.year, dt.month, dt.day, lon, lat, tz=tz)
+                rise_prev = st_prev["rise"]
+                set_prev = st_prev["set"]
+                
+                chald_day_idx = (dt.weekday() + 1) % 7
+                day_ruler = DAY_RULERS[chald_day_idx]
+                
+                if set_prev is not None and rise is not None:
+                    night_len = (rise - set_prev) / 12.0
+                    h_idx = 12 + int((jd_utc - set_prev) / night_len) if night_len > 0 else 12
+                    h_idx = max(12, min(23, h_idx))
+                    start_idx = CHALDEAN_HOUR_ORDER.index(day_ruler)
+                    hour_ruler = CHALDEAN_HOUR_ORDER[(start_idx + h_idx) % 7]
+                    return day_ruler, hour_ruler
+            else:
+                dt = datetime.date(y, mo, d)
+                chald_day_idx = (dt.weekday() + 1) % 7
+                day_ruler = DAY_RULERS[chald_day_idx]
+                
+                if jd_utc < set_:
+                    # Daytime hour (12 divisions between sunrise and sunset)
+                    day_len = (set_ - rise) / 12.0
+                    h_idx = int((jd_utc - rise) / day_len) if day_len > 0 else 0
+                    h_idx = max(0, min(11, h_idx))
+                else:
+                    # Nighttime hour
+                    dt_next = dt + datetime.timedelta(days=1)
+                    st_next = sun_times(dt_next.year, dt_next.month, dt_next.day, lon, lat, tz=tz)
+                    next_rise = st_next["rise"] if st_next["rise"] is not None else set_ + 0.5
+                    night_len = (next_rise - set_) / 12.0
+                    h_idx = 12 + int((jd_utc - set_) / night_len) if night_len > 0 else 12
+                    h_idx = max(12, min(23, h_idx))
+                    
+                start_idx = CHALDEAN_HOUR_ORDER.index(day_ruler)
+                hour_ruler = CHALDEAN_HOUR_ORDER[(start_idx + h_idx) % 7]
+                return day_ruler, hour_ruler
+
+    # Fallback to local weekday & 24h approximation
+    dt = datetime.date(y, mo, d)
+    chald_day_idx = (dt.weekday() + 1) % 7
+    day_ruler = DAY_RULERS[chald_day_idx]
+    
+    hour_of_day = int(h)
+    start_idx = CHALDEAN_HOUR_ORDER.index(day_ruler)
+    hour_ruler = CHALDEAN_HOUR_ORDER[(start_idx + hour_of_day) % 7]
     return day_ruler, hour_ruler
 
 def calculate_almuten_figuris(chart_data: Dict[str, Any], school: str = "ibn_ezra") -> Dict[str, Any]:
@@ -78,7 +131,7 @@ def calculate_almuten_figuris(chart_data: Dict[str, Any], school: str = "ibn_ezr
             essential_breakdown[p] += pt_score
 
     # Calculate Accidental Points
-    day_ruler, hour_ruler = get_day_and_hour_rulers(jd_utc)
+    day_ruler, hour_ruler = get_day_and_hour_rulers(jd_utc, observer=chart_data.get("observer"), tz=chart_data.get("tz", 0.0))
     if day_ruler in scores:
         scores[day_ruler] += 7
         accidental_breakdown[day_ruler] += 7
