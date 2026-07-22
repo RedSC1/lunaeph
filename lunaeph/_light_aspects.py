@@ -46,8 +46,26 @@ def get_moiety_of_orbs(planet1: str, planet2: str) -> float:
     orb2 = PLANETARY_ORBS_OF_LIGHT.get(p2, 6.0)
     return (orb1 + orb2) / 2.0
 
-def get_active_aspects_for_planet(chart_data: Dict[str, Any], target_planet: str, include_modern: bool = False) -> List[Dict[str, Any]]:
-    """Find all active classical/modern aspects received by target_planet."""
+def get_orb_limit(planet1: str, planet2: str, aspect_angle: float = 0.0, orb_mode: str = "moiety") -> float:
+    """
+    Get orb limit based on selected school/mode:
+    - 'moiety': Classical planetary rays (Lilly/Bonatti standard) -> (Orb1 + Orb2) / 2
+    - 'fixed_5deg': Fixed 5.0 degrees orb limit across all planets & aspects
+    - 'aspect_orbs': Standard aspect orb table (Conj/Opp 8°, Trine/Square 6°, Sextile 4°)
+    """
+    mode = orb_mode.lower()
+    if mode == "fixed_5deg":
+        return 5.0
+    elif mode == "aspect_orbs":
+        angle_int = int(round(aspect_angle))
+        aspect_table = {0: 8.0, 180: 8.0, 120: 6.0, 90: 6.0, 60: 4.0}
+        return aspect_table.get(angle_int, 6.0)
+    else:
+        return get_moiety_of_orbs(planet1, planet2)
+
+def get_active_aspects_for_planet(chart_data: Dict[str, Any], target_planet: str,
+                                 include_modern: bool = False, orb_mode: str = "moiety") -> List[Dict[str, Any]]:
+    """Find all active aspects received by target_planet using the chosen orb_mode."""
     planets = chart_data["planets"]
     target_key = target_planet.lower()
     if target_key not in planets:
@@ -65,14 +83,14 @@ def get_active_aspects_for_planet(chart_data: Dict[str, Any], target_planet: str
             continue
         o_lon = math.degrees(planets[other_key]["longitude_rad"])
         
-        moiety = get_moiety_of_orbs(target_key, other_key)
         diff = abs(t_lon - o_lon) % 360.0
         if diff > 180.0:
             diff = 360.0 - diff
             
         for angle in [0, 60, 90, 120, 180]:
+            orb_limit = get_orb_limit(target_key, other_key, aspect_angle=angle, orb_mode=orb_mode)
             orb_val = abs(diff - angle)
-            if orb_val <= moiety:
+            if orb_val <= orb_limit:
                 aspects.append({
                     "planet": other_key,
                     "planet_name": planets[other_key]["name"],
@@ -84,7 +102,7 @@ def get_active_aspects_for_planet(chart_data: Dict[str, Any], target_planet: str
                 
     return aspects
 
-def calc_besiegement(chart_data: Dict[str, Any], include_modern: bool = False) -> List[Dict[str, Any]]:
+def calc_besiegement(chart_data: Dict[str, Any], include_modern: bool = False, orb_mode: str = "moiety") -> List[Dict[str, Any]]:
     """
     Calculate Besiegement by Light/Aspects (光线/相位围攻).
     Occurs when a target planet receives active aspects from two planets simultaneously.
@@ -106,7 +124,7 @@ def calc_besiegement(chart_data: Dict[str, Any], include_modern: bool = False) -
         deg_d = int(deg)
         pos_str = f"{sign} {deg_d}°{deg_m:02d}'"
         
-        aspects = get_active_aspects_for_planet(chart_data, p_key, include_modern=include_modern)
+        aspects = get_active_aspects_for_planet(chart_data, p_key, include_modern=include_modern, orb_mode=orb_mode)
         
         # Pairs of aspects form a besiegement
         n = len(aspects)
@@ -130,7 +148,7 @@ def calc_besiegement(chart_data: Dict[str, Any], include_modern: bool = False) -
                 
     return besiegements
 
-def calc_translation_of_light(chart_data: Dict[str, Any], include_modern: bool = False) -> List[Dict[str, Any]]:
+def calc_translation_of_light(chart_data: Dict[str, Any], include_modern: bool = False, orb_mode: str = "moiety") -> List[Dict[str, Any]]:
     """
     Calculate Translation of Light (传光 / 光线传递).
     Occurs when a fast-moving planet (e.g. Moon) separates from aspecting Planet A
@@ -158,15 +176,15 @@ def calc_translation_of_light(chart_data: Dict[str, Any], include_modern: bool =
             other_p = planets[other_key]
             other_lon = math.degrees(other_p["longitude_rad"])
             
-            moiety = get_moiety_of_orbs(fast_key, other_key)
             diff = (fast_lon - other_lon) % 360.0
             
             for target_angle in [0, 60, 90, 120, 180]:
+                orb_limit = get_orb_limit(fast_key, other_key, aspect_angle=target_angle, orb_mode=orb_mode)
                 angle_diff = abs(diff - target_angle)
                 if angle_diff > 180.0:
                     angle_diff = 360.0 - angle_diff
                     
-                if angle_diff <= moiety:
+                if angle_diff <= orb_limit:
                     if diff > target_angle:
                         separating_from.append({"planet": other_key, "symbol": PLANET_SYMBOLS.get(other_key, other_key), "aspect": target_angle})
                     else:
@@ -187,7 +205,7 @@ def calc_translation_of_light(chart_data: Dict[str, Any], include_modern: bool =
                     
     return translations
 
-def calc_collection_of_light(chart_data: Dict[str, Any], include_modern: bool = False) -> List[Dict[str, Any]]:
+def calc_collection_of_light(chart_data: Dict[str, Any], include_modern: bool = False, orb_mode: str = "moiety") -> List[Dict[str, Any]]:
     """
     Calculate Collection of Light (聚光 / 光线汇聚/收集).
     Occurs when a planet collects light/aspects from multiple other planets.
@@ -203,7 +221,7 @@ def calc_collection_of_light(chart_data: Dict[str, Any], include_modern: bool = 
         if collector_key not in planets:
             continue
         c_p = planets[collector_key]
-        aspects = get_active_aspects_for_planet(chart_data, collector_key, include_modern=include_modern)
+        aspects = get_active_aspects_for_planet(chart_data, collector_key, include_modern=include_modern, orb_mode=orb_mode)
         
         if len(aspects) >= 2:
             sources = [a["symbol"] for a in aspects]
@@ -217,7 +235,7 @@ def calc_collection_of_light(chart_data: Dict[str, Any], include_modern: bool = 
 
     return collections
 
-def calc_prohibition(chart_data: Dict[str, Any], include_modern: bool = False) -> List[Dict[str, Any]]:
+def calc_prohibition(chart_data: Dict[str, Any], include_modern: bool = False, orb_mode: str = "moiety") -> List[Dict[str, Any]]:
     """
     Calculate Prohibition / Interception (阻隔 / 绝光).
     Occurs when two planets apply to aspect each other, but a heavier/malefic planet intervenes.
@@ -231,14 +249,14 @@ def calc_prohibition(chart_data: Dict[str, Any], include_modern: bool = False) -
         merc_lon = math.degrees(planets["mercury"]["longitude_rad"])
         sat_lon = math.degrees(planets["saturn"]["longitude_rad"])
         
-        moiety_sm = get_moiety_of_orbs("sun", "mercury")
+        moiety_sm = get_orb_limit("sun", "mercury", aspect_angle=0.0, orb_mode=orb_mode)
         diff_sm = abs(sun_lon - merc_lon) % 360.0
         if diff_sm > 180.0:
             diff_sm = 360.0 - diff_sm
             
         if diff_sm <= moiety_sm: # Sun & Mercury in aspect
             # Saturn forms square to Sun
-            moiety_ss = get_moiety_of_orbs("sun", "saturn")
+            moiety_ss = get_orb_limit("sun", "saturn", aspect_angle=90.0, orb_mode=orb_mode)
             diff_ss = abs(sun_lon - sat_lon) % 360.0
             if diff_ss > 180.0:
                 diff_ss = 360.0 - diff_ss

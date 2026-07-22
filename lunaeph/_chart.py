@@ -1079,25 +1079,28 @@ class Chart(dict):
         from ._karaka import calc_all_karakas
         return calc_all_karakas(self, ayanamsha_mode=ayanamsha_mode, chara_scheme=chara_scheme)
 
-    def translation_of_light(self, include_modern: bool = False) -> list:
-        """Calculate Classical/Modern Translation of Light (传光 / 光线传递)."""
+    def translation_of_light(self, include_modern: bool = False, orb_mode: str = "moiety") -> list:
+        """Calculate Classical/Modern Translation of Light (传光 / 光线传递).
+        
+        *orb_mode*: 'moiety' (古典星体光芒半径和), 'aspect_orbs' (按相位容许度表), 'fixed_5deg' (固定5度).
+        """
         from ._light_aspects import calc_translation_of_light
-        return calc_translation_of_light(self, include_modern=include_modern)
+        return calc_translation_of_light(self, include_modern=include_modern, orb_mode=orb_mode)
 
-    def collection_of_light(self, include_modern: bool = False) -> list:
+    def collection_of_light(self, include_modern: bool = False, orb_mode: str = "moiety") -> list:
         """Calculate Classical/Modern Collection of Light (聚光 / 光线汇聚)."""
         from ._light_aspects import calc_collection_of_light
-        return calc_collection_of_light(self, include_modern=include_modern)
+        return calc_collection_of_light(self, include_modern=include_modern, orb_mode=orb_mode)
 
-    def besiegement(self, include_modern: bool = False) -> list:
+    def besiegement(self, include_modern: bool = False, orb_mode: str = "moiety") -> list:
         """Calculate Besiegement by Light/Aspects (光线/相位围攻)."""
         from ._light_aspects import calc_besiegement
-        return calc_besiegement(self, include_modern=include_modern)
+        return calc_besiegement(self, include_modern=include_modern, orb_mode=orb_mode)
 
-    def prohibition(self, include_modern: bool = False) -> list:
+    def prohibition(self, include_modern: bool = False, orb_mode: str = "moiety") -> list:
         """Calculate Prohibition of Light (阻隔 / 绝光)."""
         from ._light_aspects import calc_prohibition
-        return calc_prohibition(self, include_modern=include_modern)
+        return calc_prohibition(self, include_modern=include_modern, orb_mode=orb_mode)
 
     def moiety_of_orbs(self, planet1: str, planet2: str) -> float:
         """Calculate Moiety of Orbs (古典双星光芒容许度交叠上限度数)."""
