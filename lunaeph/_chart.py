@@ -1089,6 +1089,16 @@ class Chart(dict):
         from ._light_aspects import calc_collection_of_light
         return calc_collection_of_light(self)
 
+    def besiegement(self) -> list:
+        """Calculate Besiegement by Light/Aspects (卜卦/择日占星 光线/相位围攻)."""
+        from ._light_aspects import calc_besiegement
+        return calc_besiegement(self)
+
+    def prohibition(self) -> list:
+        """Calculate Prohibition of Light (卜卦/择日占星 阻隔 / 绝光)."""
+        from ._light_aspects import calc_prohibition
+        return calc_prohibition(self)
+
     def moiety_of_orbs(self, planet1: str, planet2: str) -> float:
         """Calculate Moiety of Orbs (古典双星光芒容许度交叠上限度数)."""
         from ._light_aspects import get_moiety_of_orbs
