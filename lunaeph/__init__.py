@@ -39,6 +39,7 @@ from ._arudha_pada import calc_arudha_padas
 from ._yogini_dasha import calc_yogini_dasha
 from ._nakshatra import get_nakshatra_info, calc_nakshatra_chart, calc_nakshatra_compatibility
 from ._karaka import calc_all_karakas
+from ._light_aspects import calc_translation_of_light, calc_collection_of_light, get_moiety_of_orbs
 from ._precession import (
     iau2000b_nutation_angles,
     equation_of_equinoxes_rad,
@@ -101,6 +102,9 @@ __all__ = [
     "calc_nakshatra_chart",
     "calc_nakshatra_compatibility",
     "calc_all_karakas",
+    "calc_translation_of_light",
+    "calc_collection_of_light",
+    "get_moiety_of_orbs",
     # precession
     "iau2000b_nutation_angles",
     "equation_of_equinoxes_rad",

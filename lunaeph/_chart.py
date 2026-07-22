@@ -1079,6 +1079,21 @@ class Chart(dict):
         from ._karaka import calc_all_karakas
         return calc_all_karakas(self, ayanamsha_mode=ayanamsha_mode, chara_scheme=chara_scheme)
 
+    def translation_of_light(self) -> list:
+        """Calculate Classical Translation of Light (卜卦/择日占星 传光 / 光线传递)."""
+        from ._light_aspects import calc_translation_of_light
+        return calc_translation_of_light(self)
+
+    def collection_of_light(self) -> list:
+        """Calculate Classical Collection of Light (卜卦/择日占星 聚光 / 光线汇聚)."""
+        from ._light_aspects import calc_collection_of_light
+        return calc_collection_of_light(self)
+
+    def moiety_of_orbs(self, planet1: str, planet2: str) -> float:
+        """Calculate Moiety of Orbs (古典双星光芒容许度交叠上限度数)."""
+        from ._light_aspects import get_moiety_of_orbs
+        return get_moiety_of_orbs(planet1, planet2)
+
     # -- convenience accessors --
 
     def planet(self, name: str) -> dict:
