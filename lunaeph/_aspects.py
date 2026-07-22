@@ -1,37 +1,38 @@
 """Aspect calculation.
 
-All angles in degrees.  Orbs are defaults; override per-aspect when calling.
+All angles in degrees.  Built-in orbs are read-only defaults.
 """
 
 from __future__ import annotations
 
 import math
-from typing import NamedTuple
 
 TWO_PI = 2.0 * math.pi
 
+# Read-only default orb table: {angle_deg: orb_deg}
+DEFAULT_ORBS: dict[float, float] = {
+    0.0:   8.0,    # conjunction
+    30.0:  2.0,    # semisextile
+    45.0:  2.0,    # semisquare
+    60.0:  5.0,    # sextile
+    72.0:  1.5,    # quintile
+    90.0:  7.0,    # square
+    120.0: 7.0,    # trine
+    135.0: 2.0,    # sesquiquadrate
+    144.0: 1.5,    # biquintile
+    150.0: 3.0,    # quincunx
+    180.0: 8.0,    # opposition
+}
 
-class AspectDef(NamedTuple):
-    name: str
-    angle_deg: float
-    orb_deg: float       # default orb
-    major: bool
+# Display names for built-in angles
+_ANGLE_NAMES: dict[float, str] = {
+    0.0: "conjunction", 30.0: "semisextile", 45.0: "semisquare",
+    60.0: "sextile", 72.0: "quintile", 90.0: "square",
+    120.0: "trine", 135.0: "sesquiquadrate", 144.0: "biquintile",
+    150.0: "quincunx", 180.0: "opposition",
+}
 
-
-# Ordered from tightest to widest orb
-ASPECTS: tuple[AspectDef, ...] = (
-    AspectDef("conjunction",       0.0,   8.0, True),
-    AspectDef("opposition",      180.0,   8.0, True),
-    AspectDef("trine",           120.0,   7.0, True),
-    AspectDef("square",           90.0,   7.0, True),
-    AspectDef("sextile",          60.0,   5.0, True),
-    AspectDef("quincunx",        150.0,   3.0, False),
-    AspectDef("semisextile",      30.0,   2.0, False),
-    AspectDef("semisquare",       45.0,   2.0, False),
-    AspectDef("sesquiquadrate",  135.0,   2.0, False),
-    AspectDef("quintile",         72.0,   1.5, False),
-    AspectDef("biquintile",      144.0,   1.5, False),
-)
+_MAJOR_ANGLES = {0.0, 60.0, 90.0, 120.0, 180.0}
 
 
 def angular_separation_deg(lon1_rad: float, lon2_rad: float) -> float:
@@ -42,65 +43,40 @@ def angular_separation_deg(lon1_rad: float, lon2_rad: float) -> float:
     return math.degrees(diff)
 
 
-def find_aspects(
+def _compute_angle_aspects(
     bodies: dict[str, float],
-    orbs: dict[str, float] | None = None,
-    custom: list[tuple[str, float, float]] | None = None,
+    angle_deg: float,
+    orb_deg: float,
 ) -> list[dict]:
-    """Find all aspects among bodies.
-
-    Parameters
-    ----------
-    bodies: {name: ecliptic_longitude_rad}
-    orbs: optional {aspect_name: orb_deg} overrides for built-in aspects.
-        A key not matching any built-in aspect gets auto-registered as
-        a custom aspect: ``name`` must be "angle_num" (e.g. "70.0").
-    custom: optional list of (name, angle_deg, orb_deg) for additional
-        custom aspects beyond what *orbs* provides.
-
-    Returns: list of dicts with body1, body2, aspect, angle_deg, orb_deg.
-    """
-    # Build the full aspect list: builtins + custom
-    all_aspects: list[tuple[str, float, float, bool]] = [
-        (a.name, a.angle_deg, a.orb_deg, a.major) for a in ASPECTS
-    ]
-    # Override orbs for builtins, add auto-registered customs
-    if orbs:
-        for key, orb_val in orbs.items():
-            found = False
-            for i, (name, ang, _, major) in enumerate(all_aspects):
-                if name == key:
-                    all_aspects[i] = (name, ang, orb_val, major)
-                    found = True
-                    break
-            if not found:
-                # Auto-register: key is the angle as string, e.g. "70.0"
-                try:
-                    angle = float(key)
-                except ValueError:
-                    continue
-                all_aspects.append((key, angle, orb_val, False))
-    # Append explicit custom aspects
-    if custom:
-        for name, angle, orb_val in custom:
-            all_aspects.append((name, angle, orb_val, False))
-
+    """Scan all body pairs for a single aspect angle."""
     names = sorted(bodies.keys())
+    name = _ANGLE_NAMES.get(angle_deg, str(angle_deg))
+    major = angle_deg in _MAJOR_ANGLES
     results = []
     for i in range(len(names)):
         for j in range(i + 1, len(names)):
             sep = angular_separation_deg(bodies[names[i]], bodies[names[j]])
-            for name, angle, orb, major in all_aspects:
-                if orb <= 0.0:
-                    continue
-                if abs(sep - angle) <= orb:
-                    results.append({
-                        "body1": names[i],
-                        "body2": names[j],
-                        "aspect": name,
-                        "angle_deg": round(sep, 4),
-                        "orb_deg": round(abs(sep - angle), 4),
-                        "major": major,
-                    })
-                    break  # closest matching aspect only
+            diff = abs(sep - angle_deg)
+            if diff <= orb_deg:
+                results.append({
+                    "body1": names[i],
+                    "body2": names[j],
+                    "aspect": name,
+                    "angle_deg": round(sep, 4),
+                    "orb_deg": round(diff, 4),
+                    "major": major,
+                })
+    return results
+
+
+def find_all_aspects(
+    bodies: dict[str, float],
+    orbs: dict[float, float] | None = None,
+) -> list[dict]:
+    """Compute aspects for all angles in *orbs* (defaults to DEFAULT_ORBS)."""
+    table = orbs if orbs is not None else DEFAULT_ORBS
+    results = []
+    for angle, orb in table.items():
+        if orb > 0.0:
+            results.extend(_compute_angle_aspects(bodies, angle, orb))
     return results

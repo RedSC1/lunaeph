@@ -13,7 +13,7 @@ Usage
 
 from ._chart import calculate_chart, Chart
 from ._houses import HouseSystem, calc_houses, calc_placidus_houses
-from ._aspects import find_aspects, angular_separation_deg, ASPECTS
+from ._aspects import find_all_aspects, angular_separation_deg, DEFAULT_ORBS
 from ._signs import sign_from_longitude, sign_degree_minute, SIGN_NAMES
 from ._time import calendar_to_jd, jd_to_calendar, delta_t_seconds_from_jd_ut1
 from ._precession import (
@@ -31,9 +31,9 @@ __all__ = [
     "calc_houses",
     "calc_placidus_houses",
     # aspects
-    "find_aspects",
+    "find_all_aspects",
     "angular_separation_deg",
-    "ASPECTS",
+    "DEFAULT_ORBS",
     # signs
     "sign_from_longitude",
     "sign_degree_minute",

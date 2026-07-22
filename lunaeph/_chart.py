@@ -22,7 +22,7 @@ from ._aberration import apply_light_corrections
 from ._deflection import apply_solar_deflection
 from ._houses import calc_houses, HouseSystem
 from ._signs import sign_degree_minute
-from ._aspects import find_aspects
+from ._aspects import find_all_aspects
 
 
 # ---------------------------------------------------------------------------
@@ -57,56 +57,36 @@ def _au_to_km(au: float) -> float:
 # Main entry point
 # ---------------------------------------------------------------------------
 
-from ._aspects import ASPECTS as _ASPECT_DEFS
-_ASPECT_ANGLE_TO_NAME = {a.angle_deg: a.name for a in _ASPECT_DEFS}
-# Aliases: "60" → sextile, etc
-_ANGLE_ALIASES: dict[str, float] = {
-    "0": 0.0, "30": 30.0, "36": 36.0, "45": 45.0, "60": 60.0,
-    "72": 72.0, "90": 90.0, "120": 120.0, "135": 135.0,
-    "144": 144.0, "150": 150.0, "180": 180.0,
-}
-
-
 class Chart(dict):
     """A calculated astrology chart.
 
-    Acts like a dict (chart["planets"], chart["houses"], etc.) with
-    the addition of ``set_orb()`` to tweak aspect orbs after the fact.
+    Dict-like (chart["planets"], chart["houses"], etc.) plus ``set_orb()``
+    to tweak aspect orbs after the fact.  The built-in default orb table
+    (in ``_aspects.DEFAULT_ORBS``) is never modified.
     """
 
-    def __init__(self, data: dict, aspect_orbs: dict[str, float] | None = None):
+    def __init__(self, data: dict):
         super().__init__(data)
-        self._body_lons = {k: p["longitude_rad"] for k, p in data["planets"].items()}
-        self._aspect_orbs: dict[str, float] = dict(aspect_orbs or {})
-        # Custom aspects: list of (name, angle_deg, orb_deg)
-        self._custom_aspects: list[tuple[str, float, float]] = []
+        self._body_lons = {k: p["longitude_rad"]
+                           for k, p in data["planets"].items()}
 
-    def set_orb(self, angle: float | str | int, orb_deg: float,
-                name: str | None = None) -> "Chart":
-        """Set the orb (in degrees) for an aspect angle and recompute.
+    def set_orb(self, angle: float | str | int, orb_deg: float) -> "Chart":
+        """Set aspect *orb_deg* (in degrees) for *angle* and recompute.
 
-        ``angle`` can be a number (60, 120, etc.) or a string ("60", "120").
-        If ``angle`` matches a built-in aspect, its orb is overridden.
-        If it's a new angle, a custom aspect is auto-registered.
-
-        ``name`` optionally gives the custom aspect a display name
-        (default: the angle as a string, e.g. ``"70.0"``).
+        Only recomputes that one angle — other aspects are untouched.
+        *angle* can be a number (60, 120, …) or string ("60", "120").
         """
-        if isinstance(angle, str):
-            angle = float(_ANGLE_ALIASES.get(angle, angle))
         angle = float(angle)
-        builtin = _ASPECT_ANGLE_TO_NAME.get(angle)
-        if builtin is not None:
-            self._aspect_orbs[builtin] = float(orb_deg)
-        else:
-            display = name if name else str(angle)
-            # Replace any previous custom entry at the same angle
-            self._custom_aspects = [
-                (n, a, o) for n, a, o in self._custom_aspects if a != angle
-            ]
-            self._custom_aspects.append((display, angle, float(orb_deg)))
-        self["aspects"] = find_aspects(
-            self._body_lons, orbs=self._aspect_orbs, custom=self._custom_aspects)
+
+        # 1. Remove old entries for this angle
+        from ._aspects import _ANGLE_NAMES
+        name = _ANGLE_NAMES.get(angle, str(angle))
+        self["aspects"] = [a for a in self["aspects"] if a["aspect"] != name]
+
+        # 2. Compute new entries and insert
+        from ._aspects import _compute_angle_aspects
+        new = _compute_angle_aspects(self._body_lons, angle, float(orb_deg))
+        self["aspects"].extend(new)
         return self
 
 
@@ -121,7 +101,6 @@ def calculate_chart(
     latitude_deg: float = 0.0,
     longitude_deg: float = 0.0,
     house_system: HouseSystem = HouseSystem.PLACIDUS,
-    aspect_orbs: dict[str, float] | None = None,
     taiyin_position_fn: Callable[[float, int], tuple[float, float, float]]
         | None = None,
     taiyin_velocity_fn: Callable[[float, int], tuple[float, float, float]]
@@ -228,7 +207,7 @@ def calculate_chart(
 
     # --- aspects ---
     body_lons = {k: p["longitude_rad"] for k, p in planets.items()}
-    aspects = find_aspects(body_lons, orbs=aspect_orbs)
+    aspects = find_all_aspects(body_lons)
 
     # --- assemble ---
     y, mo, d, h, mi, s = jd_to_calendar(jd_utc)
@@ -253,7 +232,7 @@ def calculate_chart(
         },
         "aspects": aspects,
     }
-    return Chart(data, aspect_orbs)
+    return Chart(data)
 
 
 def _format_angle(rad: float) -> dict:
