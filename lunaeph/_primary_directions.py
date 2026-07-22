@@ -1,9 +1,9 @@
 """Primary Directions (西方古典主限法 / 弓限轴向推运) calculation module."""
 
 from __future__ import annotations
-import math
 from typing import Dict, Any, List
 from ._classical import TRADITIONAL_PLANETS
+from ._signs import sign_name_to_longitude
 
 # Time Keys (弧度/赤经度数 -> 年数换算比率)
 TIME_KEYS = {
@@ -37,15 +37,15 @@ def calc_primary_directions(chart_data: Dict[str, Any], key: str = "naibod", mod
     asc_info = houses["ascendant"]
     mc_info = houses["midheaven"]
     
-    asc_deg = (asc_info["degree"] + asc_info["minute"] / 60.0) + ({"Aries":0, "Taurus":30, "Gemini":60, "Cancer":90, "Leo":120, "Virgo":150, "Libra":180, "Scorpio":210, "Sagittarius":240, "Capricorn":270, "Aquarius":300, "Pisces":330}[asc_info["sign"]])
-    mc_deg = (mc_info["degree"] + mc_info["minute"] / 60.0) + ({"Aries":0, "Taurus":30, "Gemini":60, "Cancer":90, "Leo":120, "Virgo":150, "Libra":180, "Scorpio":210, "Sagittarius":240, "Capricorn":270, "Aquarius":300, "Pisces":330}[mc_info["sign"]])
+    asc_deg = sign_name_to_longitude(asc_info["sign"], asc_info["degree"] + asc_info["minute"] / 60.0)
+    mc_deg = sign_name_to_longitude(mc_info["sign"], mc_info["degree"] + mc_info["minute"] / 60.0)
     
     directions = []
     
     # Calculate Directional Arcs for traditional planets to Angles (Asc / MC)
     for p_name in TRADITIONAL_PLANETS:
         p_info = planets[p_name]
-        p_deg = (p_info["degree"] + p_info["minute"] / 60.0) + ({"Aries":0, "Taurus":30, "Gemini":60, "Cancer":90, "Leo":120, "Virgo":150, "Libra":180, "Scorpio":210, "Sagittarius":240, "Capricorn":270, "Aquarius":300, "Pisces":330}[p_info["sign"]])
+        p_deg = sign_name_to_longitude(p_info["sign"], p_info["degree"] + p_info["minute"] / 60.0)
         
         # Arc to Ascendant
         if mode_lower == "converse":

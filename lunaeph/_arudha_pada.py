@@ -3,7 +3,7 @@
 from __future__ import annotations
 import math
 from typing import Dict, Any
-from ._signs import SIGN_NAMES
+from ._signs import SIGN_NAMES, sign_name_to_longitude, sign_name_index
 
 # Traditional 7-planet sign lordship
 _SIGN_LORDS = {
@@ -11,10 +11,6 @@ _SIGN_LORDS = {
     "Leo": "sun", "Virgo": "mercury", "Libra": "venus", "Scorpio": "mars",
     "Sagittarius": "jupiter", "Capricorn": "saturn", "Aquarius": "saturn", "Pisces": "jupiter",
 }
-
-_SIGN_OFFSET = {"Aries":0,"Taurus":30,"Gemini":60,"Cancer":90,"Leo":120,"Virgo":150,
-                "Libra":180,"Scorpio":210,"Sagittarius":240,"Capricorn":270,"Aquarius":300,"Pisces":330}
-
 
 def calc_arudha_padas(chart_data: Dict[str, Any], ayanamsha_mode: str = "lahiri") -> Dict[str, Any]:
     """
@@ -36,7 +32,7 @@ def calc_arudha_padas(chart_data: Dict[str, Any], ayanamsha_mode: str = "lahiri"
     houses = chart_data["houses"]
 
     # Sidereal Ascendant sign index
-    asc_deg = (houses["ascendant"]["degree"] + houses["ascendant"]["minute"]/60.0) + _SIGN_OFFSET[houses["ascendant"]["sign"]]
+    asc_deg = sign_name_to_longitude(houses["ascendant"]["sign"], houses["ascendant"]["degree"] + houses["ascendant"]["minute"]/60.0)
     asc_sid = (asc_deg - ayan) % 360.0
     asc_sign_idx = int(asc_sid // 30.0)
 

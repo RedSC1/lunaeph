@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 from typing import Dict, Any
-from ._signs import degrees_to_zodiac, SIGN_NAMES
+from ._signs import degrees_to_zodiac, SIGN_NAMES, sign_name_index, sign_index_name
 from ._classical import DOMICILE_RULERS
 
-def get_sign_by_index(idx: int) -> str:
-    """Get sign name by 0-indexed zodiac position."""
-    return SIGN_NAMES[idx % 12]
-
-def get_sign_index(sign_name: str) -> int:
-    """Get 0-11 index of sign."""
-    return SIGN_NAMES.index(sign_name)
+# Re-exported for backward compatibility
+get_sign_by_index = sign_index_name
+get_sign_index = sign_name_index
 
 def calc_profection(
     asc_deg: float,

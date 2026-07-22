@@ -1,4 +1,26 @@
-"""Chart calculation — wires time, precession, houses, signs, aspects."""
+"""Chart calculation — wires time, precession, houses, signs, aspects.
+
+The following algorithms are adapted from 寿星天文历 (sxwnl) by 许剑伟:
+  - Equation of Time          (pty_zty2)
+  - Sunrise / Sunset / Twilight (sunShengJ, SZJ.St)
+  - Syzygy sequence            (suoN, so_low)
+  - Prenatal syzygy search     (so_low-based search)
+
+寿星天文历 copyright notice:
+  本程序是开源的，你可以使用其中的任意部分代码，但不得随意修改
+  "天文算法(eph.js)"及"农历算法(lunar.js)中古历部分的数据及算法"。
+  一旦修改可能影响万年历的准确性，如果你对天文学不太了解而仅凭
+  对历法的热情，请不要对此做任何修改，以免弄巧成拙。
+
+  如果在你自己开发的软件中使用了本程序的核心算法及数据，你可以
+  在你的软件中申明"数据或算法来源于寿星天文历"，也可以不申明，
+  但不可以申明为它其它来源。如有异义，可与我共内探讨。
+
+  — 许剑伟 (xunmeng04#163.com), https://github.com/sxwnl/sxwnl
+
+Atmospheric refraction (hybrid Bennett+Smart) and WGS84 geodetic model
+are adapted from taiyin‑ephemeris (Apache 2.0).
+"""
 
 from __future__ import annotations
 
@@ -22,7 +44,7 @@ from ._precession import (
 from ._aberration import apply_light_corrections
 from ._deflection import apply_solar_deflection
 from ._houses import calc_houses, HouseSystem
-from ._signs import sign_degree_minute
+from ._signs import sign_degree_minute, sign_name_to_longitude
 from ._aspects import find_all_aspects, _ANGLE_NAMES
 
 
@@ -268,8 +290,506 @@ def search_lunar_longitude(target_lon_rad: float, start_jd: float, end_jd: float
     def obj_fn(jd: float) -> float:
         moon_lon = _get_body_lon_at_jd(jd, 301)
         return (moon_lon - target_lon_rad + math.pi) % (2.0 * math.pi) - math.pi
-        
+
     return _newton_bisection(obj_fn, start_jd, end_jd)
+
+
+def search_prenatal_syzygy(birth_jd_utc: float) -> tuple[str, float]:
+    """Return (sign_name, degree_in_sign) of the prenatal syzygy point.
+
+    The prenatal syzygy (出生前朔望点) is the last New Moon or Full Moon
+    before birth — one of the 5 Hylegial places in medieval astrology.
+
+    Algorithm: search backward from birth in ~14.8-day windows (half the
+    synodic month) to bracket the Sun-Moon conjunction or opposition,
+    then refine with Newton-Bisection.
+
+    Fallback: if root-finding fails (should never happen), returns natal
+    Moon position.
+    """
+    birth_sun = _get_body_lon_at_jd(birth_jd_utc, 10)
+    birth_moon = _get_body_lon_at_jd(birth_jd_utc, 301)
+
+    # If Moon is ahead of Sun by < 180°, we're waxing → last syzygy was New Moon
+    # If Moon is ahead of Sun by > 180°, we're waning → last syzygy was Full Moon
+    diff = (birth_moon - birth_sun) % (2.0 * math.pi)
+    target = 0.0 if diff < math.pi else math.pi
+
+    jd_hi = birth_jd_utc
+    for _ in range(5):
+        jd_lo = jd_hi - 14.8
+
+        def obj_fn(jd: float) -> float:
+            s = _get_body_lon_at_jd(jd, 10)
+            m = _get_body_lon_at_jd(jd, 301)
+            return (m - s - target + math.pi) % (2.0 * math.pi) - math.pi
+
+        try:
+            syzygy_jd = _newton_bisection(obj_fn, jd_lo, jd_hi)
+        except ValueError:
+            jd_hi = jd_lo
+            continue
+
+        syzygy_lon_deg = math.degrees(_get_body_lon_at_jd(syzygy_jd, 301)) % 360.0
+        from ._signs import degrees_to_zodiac
+        sign, deg = degrees_to_zodiac(syzygy_lon_deg)
+        return sign, deg
+
+    # Fallback (should not be reached)
+    from ._signs import degrees_to_zodiac
+    sign, deg = degrees_to_zodiac(math.degrees(birth_moon) % 360.0)
+    return sign, deg
+
+
+# ---------------------------------------------------------------------------
+# Syzygy (朔望月) sequence — for lunar calendar, eclipse search, etc.
+# Core algorithm adapted from 寿星万年历 (sxwnl) by 许剑伟.
+# ---------------------------------------------------------------------------
+
+SYNODIC_MONTH = 29.530588861  # mean synodic month in days
+_J2000 = 2451545.0
+
+
+def _suo_n(jd_utc: float) -> int:
+    """Return the new moon serial number for a given JD_UTC.
+
+    n = 0 corresponds to the new moon nearest to J2000.0.
+    """
+    return int(math.floor((jd_utc - _J2000) / SYNODIC_MONTH))
+
+
+def _syzygy_root(n: int, target_rad: float) -> float:
+    """Find the exact JD_UTC of the n-th syzygy.
+
+    target_rad = 0 for new moon, target_rad = π for full moon.
+    Uses the analytical estimate from 寿星万年历 so_low (error < 2 hours),
+    then refines with Newton-Bisection.
+    """
+    W = n * 2.0 * math.pi + target_rad  # total Moon-Sun phase at syzygy
+
+    # Analytical estimate adapted from 寿星万年历 so_low() — error < 2 hours
+    v = 7771.37714500204
+    t = (W + 1.08472) / v
+    t -= (
+        -0.0000331 * t * t
+        + 0.10976 * math.cos(0.785 + 8328.6914 * t)
+        + 0.02224 * math.cos(0.187 + 7214.0629 * t)
+        - 0.03342 * math.cos(4.669 + 628.3076 * t)
+    ) / v
+    t += (32.0 * (t + 1.8) * (t + 1.8) - 20.0) / 86400.0 / 36525.0
+    jd_approx = t * 36525.0 + _J2000  # TT, close enough for bracket
+
+    # Bracket: ±3 days — the analytical estimate can drift ~2 days at extreme
+    # epochs (±3000 years) due to secular changes in lunar orbit, but never more.
+    jd_lo = jd_approx - 3.0
+    jd_hi = jd_approx + 3.0
+
+    def obj_fn(jd: float) -> float:
+        s = _get_body_lon_at_jd(jd, 10)
+        m = _get_body_lon_at_jd(jd, 301)
+        return (m - s - target_rad + math.pi) % (2.0 * math.pi) - math.pi
+
+    return _newton_bisection(obj_fn, jd_lo, jd_hi)
+
+
+def new_moons_between(jd_start: float, jd_end: float) -> list[float]:
+    """Return all new moon JD_UTC values in [jd_start, jd_end]."""
+    n_start = _suo_n(jd_start) - 1  # Go one earlier to be safe
+    n_end = _suo_n(jd_end) + 1
+    results = []
+    for n in range(n_start, n_end + 1):
+        jd = _syzygy_root(n, 0.0)
+        if jd_start <= jd <= jd_end:
+            results.append(jd)
+    return results
+
+
+def full_moons_between(jd_start: float, jd_end: float) -> list[float]:
+    """Return all full moon JD_UTC values in [jd_start, jd_end]."""
+    n_start = _suo_n(jd_start) - 1
+    n_end = _suo_n(jd_end) + 1
+    results = []
+    for n in range(n_start, n_end + 1):
+        jd = _syzygy_root(n, math.pi)
+        if jd_start <= jd <= jd_end:
+            results.append(jd)
+    return results
+
+
+
+# ---------------------------------------------------------------------------
+# Equation of Time & Sunrise/Sunset
+# ---------------------------------------------------------------------------
+# EoT:  pty_zty2 from 寿星万年历 (sxwnl) — mean vs apparent solar time
+# Rise/Set: sunShengJ iterative fixed-point search from sxwnl
+# Refraction: hybrid model (Bennett + Smart) from taiyin-ephemeris
+# Earth shape: WGS84 ellipsoid → geocentric AU from taiyin-ephemeris
+# ---------------------------------------------------------------------------
+
+# WGS84 ellipsoid
+_WGS84_A_M = 6378137.0
+_WGS84_F = 1.0 / 298.257223563
+_WGS84_E2 = _WGS84_F * (2.0 - _WGS84_F)
+_AU_M = 149597870700.0
+
+# Solar semi-diameter at 1 AU (mean)
+_SUN_SEMI_DIAMETER_RAD = 0.004654  # ~16 arcmin
+
+# Altitude thresholds for twilight (unrefracted geometric; refraction is tiny at these angles)
+_TWILIGHT_CIVIL_RAD    = math.radians(-6.0)
+_TWILIGHT_NAUTICAL_RAD = math.radians(-12.0)
+_TWILIGHT_ASTRONOM_RAD = math.radians(-18.0)
+
+_ARC_MIN_TO_RAD = math.radians(1.0 / 60.0)
+_ARC_SEC_TO_RAD = math.radians(1.0 / 3600.0)
+
+
+# ---------------------------------------------------------------------------
+# Refraction
+# ---------------------------------------------------------------------------
+
+def _hybrid_refraction_rad(altitude_rad: float, pressure_mbar: float = 1013.25,
+                           temperature_c: float = 10.0) -> float:
+    """Atmospheric refraction in radians (apparent − geometric altitude).
+
+    Hybrid model from taiyin-ephemeris:
+      alt ≥ 16°: Smart formula (58.276 tan z − 0.0824 tan³ z)
+      alt ≤ 14°: Bennett formula (1.02 / tan(alt + 10.3/(alt + 5.11)))
+      14°–16°:  linear blend between the two
+
+    Scaled by (P / 1010 mbar) × (283 K / T) for non‑standard conditions.
+    Returns 0 below −2° geometric altitude.
+    """
+    temp_k = 273.0 + temperature_c
+    if pressure_mbar <= 0.0 or temp_k <= 0.0:
+        return 0.0
+
+    alt_deg = math.degrees(altitude_rad)
+    if alt_deg < -2.0:
+        return 0.0
+
+    # Smart (high altitude)
+    z_deg = 90.0 - alt_deg
+    tan_z = math.tan(math.radians(z_deg))
+    smart_am = (58.276 * tan_z - 0.0824 * tan_z * tan_z * tan_z) / 60.0  # arcmin
+
+    # Bennett (low altitude)
+    arg_deg = alt_deg + 10.3 / (alt_deg + 5.11)
+    bennett_am = 1.02 / math.tan(math.radians(arg_deg))
+
+    # Blend
+    if alt_deg >= 16.0:
+        r_am = smart_am
+    elif alt_deg <= 14.0:
+        r_am = bennett_am
+    else:
+        w = (alt_deg - 14.0) / 2.0
+        r_am = bennett_am * (1.0 - w) + smart_am * w
+
+    if r_am <= 0.0:
+        return 0.0
+
+    scale = (pressure_mbar / 1010.0) * (283.0 / temp_k)
+    return r_am * scale * _ARC_MIN_TO_RAD
+
+
+def _sun_rise_set_target_alt(pressure_mbar: float = 1013.25,
+                              temperature_c: float = 10.0) -> float:
+    """Geometric altitude of Sun's centre at sunrise/set (radians, negative).
+
+    Sunrise/set is defined as the Sun's upper limb touching the apparent
+    horizon.  Because refraction lifts the image, the geometric centre must
+    be *below* the astronomical horizon by an amount equal to
+    refraction + semi‑diameter.
+
+    We iterate 3× to solve  h + refraction(h) = +semi_diameter.
+    """
+    h = -0.015  # radians ≈ −0.86°  (first guess)
+    for _ in range(3):
+        ref = _hybrid_refraction_rad(h, pressure_mbar, temperature_c)
+        target = _SUN_SEMI_DIAMETER_RAD - ref
+        h = target
+    return h
+
+
+def _twilight_target_alt(twilight_rad: float, pressure_mbar: float = 1013.25,
+                          temperature_c: float = 10.0) -> float:
+    """Geometric altitude for a given twilight definition (radians, negative).
+
+    Civil  = −6°, Nautical = −12°, Astronomical = −18° apparent.
+    Refraction is small at these altitudes (≤ 9′), so we apply it directly
+    without iteration:  geometric = apparent − refraction.
+    """
+    ref = _hybrid_refraction_rad(twilight_rad, pressure_mbar, temperature_c)
+    return twilight_rad - ref
+
+
+# ---------------------------------------------------------------------------
+# Observer position on Earth
+# ---------------------------------------------------------------------------
+
+def _geodetic_to_ecef_au(lon_rad: float, lat_rad: float, height_m: float = 0.0) -> tuple[float, float, float]:
+    """WGS84 geodetic → Earth-Centred Earth-Fixed in AU."""
+    sin_lat = math.sin(lat_rad)
+    cos_lat = math.cos(lat_rad)
+    n = _WGS84_A_M / math.sqrt(1.0 - _WGS84_E2 * sin_lat * sin_lat)
+    x = (n + height_m) * cos_lat * math.cos(lon_rad) / _AU_M
+    y = (n + height_m) * cos_lat * math.sin(lon_rad) / _AU_M
+    z = (n * (1.0 - _WGS84_E2) + height_m) * sin_lat / _AU_M
+    return (x, y, z)
+
+
+def _observer_geocentric_au(lon_rad: float, lat_rad: float, height_m: float,
+                             jd_ut1: float, jd_tt: float) -> tuple[float, float, float]:
+    """Observer geocentric position in true equator-of-date equatorial frame (AU).
+
+    ECEF → rotate by GMST → equatorial.  (Polar motion omitted — < 15 m, negligible
+    for rise/set timing.)
+    """
+    from ._time import gmst_rad
+    x_ecef, y_ecef, z_ecef = _geodetic_to_ecef_au(lon_rad, lat_rad, height_m)
+    gmst = gmst_rad(jd_ut1, jd_tt)
+    cos_g = math.cos(gmst)
+    sin_g = math.sin(gmst)
+    return (
+        x_ecef * cos_g - y_ecef * sin_g,
+        x_ecef * sin_g + y_ecef * cos_g,
+        z_ecef,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Topocentric horizontal conversion
+# ---------------------------------------------------------------------------
+
+def _topocentric_to_horizontal(topocentric_au: tuple[float, float, float],
+                                lst_rad: float, lat_rad: float) -> tuple[float, float]:
+    """Equatorial topocentric (AU) → horizontal (azimuth_rad, altitude_rad)."""
+    tx, ty, tz = topocentric_au
+    # Hour angle
+    ha = lst_rad - math.atan2(ty, tx)
+    # Local Cartesian: east, north, up
+    sin_lat = math.sin(lat_rad)
+    cos_lat = math.cos(lat_rad)
+    sin_ha = math.sin(ha)
+    cos_ha = math.cos(ha)
+    r = math.sqrt(tx * tx + ty * ty + tz * tz)
+    dec = math.asin(tz / r) if r > 0.0 else 0.0
+    # Horizontal
+    sin_dec = math.sin(dec)
+    cos_dec = math.cos(dec)
+    alt = math.asin(sin_lat * sin_dec + cos_lat * cos_dec * cos_ha)
+    az = math.atan2(-cos_dec * sin_ha,
+                     sin_dec * cos_lat - cos_dec * sin_lat * cos_ha)
+    return (az % (2.0 * math.pi), alt)
+
+
+# ---------------------------------------------------------------------------
+# Rise / Set core
+# ---------------------------------------------------------------------------
+
+def _sun_rise_set_core(jd_noon_ut: float, lon_rad: float, lat_rad: float,
+                        height_m: float, target_alt_rad: float, sj: float,
+                        pressure_mbar: float = 1013.25,
+                        temperature_c: float = 10.0) -> float | None:
+    """Core single-event rise/set calculator using WGS84 ellipsoid + hybrid refraction.
+
+    sj = −1 for rise, +1 for set.  Returns JD_UT or None (polar day/night).
+    """
+    from ._precession import mean_obliquity_rad
+    from ._time import gast_rad, delta_t_seconds_from_jd_ut1, gmst_rad
+
+    # Start from local noon
+    jd = math.floor(jd_noon_ut + 0.5) - lon_rad / (2.0 * math.pi)
+
+    for _ in range(3):
+        jd_tt = jd_ut1_to_tt(jd)
+        jd_ut1 = jd  # UT1 ≈ UTC for this purpose
+
+        # Sun geocentric equatorial position
+        obl = mean_obliquity_rad(jd_tt)
+        sun_lon = _get_body_lon_at_jd(jd, 10)
+        sin_lon = math.sin(sun_lon)
+        cos_lon = math.cos(sun_lon)
+        cos_obl = math.cos(obl)
+        sin_obl = math.sin(obl)
+        ra = math.atan2(sin_lon * cos_obl, cos_lon) % (2.0 * math.pi)
+        dec = math.asin(sin_obl * sin_lon)
+        r_sun_au = 1.0  # ~1 AU, parallax is negligible for the Sun
+
+        # Observer geocentric position
+        obs_x, obs_y, obs_z = _observer_geocentric_au(lon_rad, lat_rad, height_m, jd_ut1, jd_tt)
+
+        # Topocentric Sun position (Sun − observer)
+        sun_x = r_sun_au * math.cos(dec) * math.cos(ra)
+        sun_y = r_sun_au * math.cos(dec) * math.sin(ra)
+        sun_z = r_sun_au * math.sin(dec)
+        topo = (sun_x - obs_x, sun_y - obs_y, sun_z - obs_z)
+
+        # Local sidereal time
+        lst = gast_rad(jd_ut1, jd_tt) + lon_rad
+
+        # Horizontal coordinates
+        _, alt = _topocentric_to_horizontal(topo, lst, lat_rad)
+
+        # Refracted altitude
+        ref = _hybrid_refraction_rad(alt, pressure_mbar, temperature_c)
+        apparent_alt = alt + ref
+
+        # Hour angle at current time
+        ha = (lst - ra) % (2.0 * math.pi)
+        if ha > math.pi:
+            ha -= 2.0 * math.pi
+
+        # Required hour angle for target apparent altitude
+        num = math.sin(target_alt_rad) - math.sin(lat_rad) * math.sin(dec)
+        den = math.cos(lat_rad) * math.cos(dec)
+        if abs(den) < 1e-15:
+            return None
+        cosH = num / den
+        if abs(cosH) >= 1.0:
+            return None
+
+        H0 = math.acos(cosH)
+
+        # Correction: difference between required and current hour angle
+        djd = (sj * H0 - ha) / (2.0 * math.pi)
+        jd += djd
+
+        # Convergence check
+        if abs(djd) < 1.0 / 86400.0:  # < 1 second
+            break
+
+    return jd
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+def equation_of_time_minutes(jd_utc: float) -> float:
+    """Equation of time in decimal minutes.
+
+    EoT = apparent solar time − mean solar time.
+    Positive → sundial is ahead of clock (true Sun crosses meridian early).
+
+    Ported from 寿星万年历 pty_zty2, error < 1 second.
+    """
+    jd_tt = jd_ut1_to_tt(jd_utc)
+    t = (jd_tt - 2451545.0) / 36525.0  # TT centuries from J2000
+
+    # Mean solar ecliptic longitude (radians), uniform motion
+    L_mean = (1753470142.0 + 628331965331.8 * t + 5296.74 * t * t) / 1e9 + math.pi
+
+    # True geocentric solar ecliptic longitude (from body_id=10)
+    true_lon = _get_body_lon_at_jd(jd_utc, 10)
+
+    # Obliquity (arcsec → radians)
+    obl = (84381.4088 - 46.836051 * t) * _ARC_SEC_TO_RAD
+
+    # True solar Right Ascension (ecliptic → equatorial, solar lat = 0)
+    RA_true = math.atan2(math.sin(true_lon) * math.cos(obl), math.cos(true_lon))
+
+    # EoT = mean − true RA → normalize to [−π, π] → convert to minutes
+    eot_rad = (L_mean - RA_true + math.pi) % (2.0 * math.pi) - math.pi
+    return eot_rad * 1440.0 / (2.0 * math.pi)
+
+
+def apparent_solar_time_minutes(jd_utc: float, lon_deg: float) -> float:
+    """True (apparent) solar time of day in decimal minutes at a given JD and longitude.
+
+    AST = mean solar time at meridian + EoT
+        = (UT + lon/15) × 60  +  EoT
+    """
+    jd = jd_utc + 0.5
+    ut_minutes = (jd - int(jd)) * 1440.0
+    mean_solar_min = ut_minutes + lon_deg * 4.0
+    eot_min = equation_of_time_minutes(jd_utc)
+    return (mean_solar_min + eot_min) % 1440.0
+
+
+def sun_times(year: int, month: int, day: int,
+              lon_deg: float, lat_deg: float,
+              tz: float = 0.0,
+              height_m: float = 0.0,
+              pressure_mbar: float = 1013.25,
+              temperature_c: float = 10.0) -> dict[str, float | None]:
+    """Compute sunrise, sunset, transit, and twilight times.
+
+    WGS84 ellipsoid + hybrid atmospheric refraction model.
+
+    Returns dict with JD_UT values (or None if the event doesn't occur):
+        rise, set, transit           — upper limb at apparent horizon
+        civil_dawn, civil_dusk       — Sun centre at −6° apparent
+        nautical_dawn, nautical_dusk — Sun centre at −12° apparent
+        astron_dawn, astron_dusk     — Sun centre at −18° apparent
+
+    height_m:        elevation above sea level (metres)
+    pressure_mbar:   station pressure (default 1013.25 = standard)
+    temperature_c:   air temperature °C (default 10)
+    """
+    lon_rad = math.radians(lon_deg)
+    lat_rad = math.radians(lat_deg)
+
+    from ._precession import mean_obliquity_rad
+    from ._time import gast_rad
+
+    # Approx JD of local noon (UT)
+    jd_noon_ut = calendar_to_jd(year, month, day, 12, 0, 0.0) - tz / 24.0
+
+    # Refine to transit
+    jd = jd_noon_ut
+    for _ in range(2):
+        jd_tt = jd_ut1_to_tt(jd)
+        jd_ut1 = jd
+        obl = mean_obliquity_rad(jd_tt)
+        sun_lon = _get_body_lon_at_jd(jd, 10)
+        sin_lon = math.sin(sun_lon)
+        cos_lon = math.cos(sun_lon)
+        cos_obl = math.cos(obl)
+        ra = math.atan2(sin_lon * cos_obl, cos_lon) % (2.0 * math.pi)
+        lst = gast_rad(jd_ut1, jd_tt) + lon_rad
+        ha = (lst - ra + math.pi) % (2.0 * math.pi) - math.pi
+        jd -= ha / (2.0 * math.pi)
+    transit_jd = jd
+
+    # Target altitudes
+    rise_set_alt = _sun_rise_set_target_alt(pressure_mbar, temperature_c)
+    civil_alt    = _twilight_target_alt(_TWILIGHT_CIVIL_RAD, pressure_mbar, temperature_c)
+    nautical_alt = _twilight_target_alt(_TWILIGHT_NAUTICAL_RAD, pressure_mbar, temperature_c)
+    astron_alt   = _twilight_target_alt(_TWILIGHT_ASTRONOM_RAD, pressure_mbar, temperature_c)
+
+    rise  = _sun_rise_set_core(transit_jd, lon_rad, lat_rad, height_m, rise_set_alt, -1.0,
+                               pressure_mbar, temperature_c)
+    set   = _sun_rise_set_core(transit_jd, lon_rad, lat_rad, height_m, rise_set_alt, +1.0,
+                               pressure_mbar, temperature_c)
+
+    c_d  = _sun_rise_set_core(transit_jd, lon_rad, lat_rad, height_m, civil_alt, -1.0,
+                              pressure_mbar, temperature_c)
+    c_k  = _sun_rise_set_core(transit_jd, lon_rad, lat_rad, height_m, civil_alt, +1.0,
+                              pressure_mbar, temperature_c)
+
+    n_d  = _sun_rise_set_core(transit_jd, lon_rad, lat_rad, height_m, nautical_alt, -1.0,
+                              pressure_mbar, temperature_c)
+    n_k  = _sun_rise_set_core(transit_jd, lon_rad, lat_rad, height_m, nautical_alt, +1.0,
+                              pressure_mbar, temperature_c)
+
+    a_d  = _sun_rise_set_core(transit_jd, lon_rad, lat_rad, height_m, astron_alt, -1.0,
+                              pressure_mbar, temperature_c)
+    a_k  = _sun_rise_set_core(transit_jd, lon_rad, lat_rad, height_m, astron_alt, +1.0,
+                              pressure_mbar, temperature_c)
+
+    return {
+        "rise": rise, "transit": transit_jd, "set": set,
+        "civil_dawn": c_d, "civil_dusk": c_k,
+        "nautical_dawn": n_d, "nautical_dusk": n_k,
+        "astron_dawn": a_d, "astron_dusk": a_k,
+    }
+
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
 
 
 
@@ -330,7 +850,6 @@ class Chart(dict):
         *nodes_after_mercury*: If True (default/爱星盘流派), places Lunar Nodes after Mercury/sequence.
         """
         from ._firdaria import calc_firdaria_timeline, get_current_firdaria
-        import math
         sun_lon = self["planets"]["sun"]["longitude_rad"]
         asc_lon = self["houses"]["ascendant"]["longitude_rad"]
         is_day_chart = ((sun_lon - asc_lon) % (2.0 * math.pi)) > math.pi
@@ -345,20 +864,20 @@ class Chart(dict):
         *age*: Age in years (e.g. 21.0).
         *start_point*: 'ascendant', 'sun', 'moon', or a custom point name.
         """
-        from ._profections import calc_profection, get_sign_index
+        from ._profections import calc_profection
         asc_info = self["houses"]["ascendant"]
-        asc_deg = (get_sign_index(asc_info["sign"]) * 30.0) + asc_info["degree"] + (asc_info["minute"] / 60.0)
-        
+        asc_deg = sign_name_to_longitude(asc_info["sign"], asc_info["degree"] + asc_info["minute"] / 60.0)
+
         start_deg = asc_deg
         if start_point.lower() == "sun":
             sun_p = self["planets"]["sun"]
-            start_deg = (get_sign_index(sun_p["sign"]) * 30.0) + sun_p["degree"] + (sun_p["minute"] / 60.0)
+            start_deg = sign_name_to_longitude(sun_p["sign"], sun_p["degree"] + sun_p["minute"] / 60.0)
         elif start_point.lower() == "moon":
             moon_p = self["planets"]["moon"]
-            start_deg = (get_sign_index(moon_p["sign"]) * 30.0) + moon_p["degree"] + (moon_p["minute"] / 60.0)
+            start_deg = sign_name_to_longitude(moon_p["sign"], moon_p["degree"] + moon_p["minute"] / 60.0)
         elif start_point in self["planets"]:
             p = self["planets"][start_point]
-            start_deg = (get_sign_index(p["sign"]) * 30.0) + p["degree"] + (p["minute"] / 60.0)
+            start_deg = sign_name_to_longitude(p["sign"], p["degree"] + p["minute"] / 60.0)
             
         return calc_profection(asc_deg, age, start_point_deg=start_deg)
 

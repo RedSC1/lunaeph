@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 from typing import Dict, Any, List
 from ._classical import TRADITIONAL_PLANETS, get_essential_dignities
-from ._signs import degrees_to_zodiac
+from ._signs import degrees_to_zodiac, sign_name_to_longitude, sign_name_index, SIGN_START_DEG
 
 # House Accidental Dignity Weights (Ibn Ezra / Robert Zoller Standard)
 HOUSE_WEIGHTS = {
@@ -49,17 +49,20 @@ def calculate_almuten_figuris(chart_data: Dict[str, Any], school: str = "ibn_ezr
     jd_utc = chart_data["jd_utc"]
     
     sun_lon = planets["sun"]["longitude_rad"]
-    asc_lon = math.radians((houses["ascendant"]["degree"] + houses["ascendant"]["minute"] / 60.0) + ({"Aries":0, "Taurus":30, "Gemini":60, "Cancer":90, "Leo":120, "Virgo":150, "Libra":180, "Scorpio":210, "Sagittarius":240, "Capricorn":270, "Aquarius":300, "Pisces":330}[houses["ascendant"]["sign"]]))
+    asc_lon = math.radians(sign_name_to_longitude(houses["ascendant"]["sign"], houses["ascendant"]["degree"] + houses["ascendant"]["minute"] / 60.0))
     is_day_chart = ((sun_lon - asc_lon) % (2.0 * math.pi)) > math.pi
     
     # 1. Five Vital Points (5 Hylegial Places)
-    # (1) Sun, (2) Moon, (3) Ascendant, (4) Lot of Fortune, (5) Prenatal Syzygy (approx. by Moon position for simplicity)
+    # (1) Sun, (2) Moon, (3) Ascendant, (4) Lot of Fortune, (5) Prenatal Syzygy
+    from ._chart import search_prenatal_syzygy
+    syzygy_sign, syzygy_deg = search_prenatal_syzygy(jd_utc)
+
     vital_points = {
         "sun": (planets["sun"]["sign"], planets["sun"]["degree"] + planets["sun"]["minute"] / 60.0),
         "moon": (planets["moon"]["sign"], planets["moon"]["degree"] + planets["moon"]["minute"] / 60.0),
         "ascendant": (houses["ascendant"]["sign"], houses["ascendant"]["degree"] + houses["ascendant"]["minute"] / 60.0),
         "fortune": (lots["fortune"]["sign"], lots["fortune"]["degree_in_sign"]),
-        "syzygy": (planets["moon"]["sign"], planets["moon"]["degree"] + planets["moon"]["minute"] / 60.0), # SAN approximation
+        "syzygy": (syzygy_sign, syzygy_deg),
     }
     
     scores = {p: 0 for p in TRADITIONAL_PLANETS}
@@ -89,11 +92,11 @@ def calculate_almuten_figuris(chart_data: Dict[str, Any], school: str = "ibn_ezr
     for p in TRADITIONAL_PLANETS:
         p_sign = planets[p]["sign"]
         p_deg = planets[p]["degree"] + planets[p]["minute"] / 60.0
-        p_lon = ({"Aries":0, "Taurus":30, "Gemini":60, "Cancer":90, "Leo":120, "Virgo":150, "Libra":180, "Scorpio":210, "Sagittarius":240, "Capricorn":270, "Aquarius":300, "Pisces":330}[p_sign]) + p_deg
+        p_lon = sign_name_to_longitude(p_sign, p_deg)
         
         # Simple Whole Sign house calculation
         asc_sign = houses["ascendant"]["sign"]
-        p_house = (({"Aries":0, "Taurus":30, "Gemini":60, "Cancer":90, "Leo":120, "Virgo":150, "Libra":180, "Scorpio":210, "Sagittarius":240, "Capricorn":270, "Aquarius":300, "Pisces":330}[p_sign] // 30 - {"Aries":0, "Taurus":30, "Gemini":60, "Cancer":90, "Leo":120, "Virgo":150, "Libra":180, "Scorpio":210, "Sagittarius":240, "Capricorn":270, "Aquarius":300, "Pisces":330}[asc_sign] // 30) % 12) + 1
+        p_house = ((sign_name_index(p_sign) - sign_name_index(asc_sign)) % 12) + 1
         
         h_score = HOUSE_WEIGHTS.get(p_house, 0)
         if school_lower == "lilly" and p_house in (6, 8, 12) and essential_breakdown[p] <= 0:

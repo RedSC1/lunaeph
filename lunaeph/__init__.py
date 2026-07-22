@@ -11,7 +11,13 @@ Usage
 'Aries'
 """
 
-from ._chart import calculate_chart, Chart, search_solar_longitude, search_lunar_longitude
+from ._chart import (
+    calculate_chart, Chart,
+    search_solar_longitude, search_lunar_longitude,
+    search_prenatal_syzygy,
+    new_moons_between, full_moons_between,
+    equation_of_time_minutes, apparent_solar_time_minutes, sun_times,
+)
 from ._houses import HouseSystem, calc_houses, calc_placidus_houses
 from ._aspects import find_all_aspects, angular_separation_deg, DEFAULT_ORBS
 from ._signs import sign_from_longitude, sign_degree_minute, SIGN_NAMES
@@ -45,6 +51,12 @@ __all__ = [
     "Chart",
     "search_solar_longitude",
     "search_lunar_longitude",
+    "search_prenatal_syzygy",
+    "new_moons_between",
+    "full_moons_between",
+    "equation_of_time_minutes",
+    "apparent_solar_time_minutes",
+    "sun_times",
     # houses
     "HouseSystem",
     "calc_houses",

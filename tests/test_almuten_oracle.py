@@ -8,14 +8,14 @@ def test_almuten_figuris_oracle():
     
     # Check victor planet
     assert alm["almuten_figuris"] == "venus"
-    assert alm["top_score"] == 29
-    
+    assert alm["top_score"] == 33
+
     # Check day/hour rulers
     assert alm["day_ruler"] == "venus"
     assert alm["hour_ruler"] == "sun"
-    
+
     # Check scores ranking
     scores = alm["scores"]
     assert scores["venus"] > scores["jupiter"]
-    assert scores["jupiter"] > scores["moon"]
-    assert scores["moon"] > scores["sun"]
+    assert scores["jupiter"] > scores["sun"]
+    assert scores["sun"] > scores["moon"]

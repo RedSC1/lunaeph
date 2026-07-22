@@ -190,3 +190,9 @@ Depends on `taiyin-ephemeris-semi-analytic>=0.2.0`.
 ## License
 
 Apache 2.0.
+
+## Acknowledgements
+
+- **寿星天文历 (sxwnl)** by 许剑伟 — [https://github.com/sxwnl/sxwnl](https://github.com/sxwnl/sxwnl)  
+  The Equation of Time, sunrise/sunset/twilight, and syzygy sequence algorithms
+  are adapted from this project. See [NOTICE](NOTICE) for the full copyright notice.

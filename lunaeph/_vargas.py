@@ -3,13 +3,7 @@
 from __future__ import annotations
 import math
 from typing import Dict, Any, List
-from ._signs import SIGN_NAMES, degrees_to_zodiac
-
-def get_sign_index(sign_name: str) -> int:
-    return SIGN_NAMES.index(sign_name)
-
-def get_sign_name(idx: int) -> str:
-    return SIGN_NAMES[idx % 12]
+from ._signs import SIGN_NAMES, degrees_to_zodiac, sign_name_index, sign_index_name
 
 def calc_d9_navamsha(sidereal_lon_deg: float) -> tuple[str, float]:
     """
@@ -34,7 +28,7 @@ def calc_d9_navamsha(sidereal_lon_deg: float) -> tuple[str, float]:
     start_sign_idx = start_sign_map[element]
     
     d9_sign_idx = (start_sign_idx + sub_idx) % 12
-    return get_sign_name(d9_sign_idx), sub_rem_deg
+    return sign_index_name(d9_sign_idx), sub_rem_deg
 
 def calc_d10_dasamsa(sidereal_lon_deg: float) -> tuple[str, float]:
     """
@@ -58,7 +52,7 @@ def calc_d10_dasamsa(sidereal_lon_deg: float) -> tuple[str, float]:
         start_sign_idx = (sign_idx + 8) % 12
         
     d10_sign_idx = (start_sign_idx + sub_idx) % 12
-    return get_sign_name(d10_sign_idx), sub_rem_deg
+    return sign_index_name(d10_sign_idx), sub_rem_deg
 
 def calc_d3_drekkana(sidereal_lon_deg: float) -> tuple[str, float]:
     """
@@ -79,7 +73,7 @@ def calc_d3_drekkana(sidereal_lon_deg: float) -> tuple[str, float]:
     else:
         d3_sign_idx = (sign_idx + 8) % 12 # 9th sign
         
-    return get_sign_name(d3_sign_idx), sub_rem_deg
+    return sign_index_name(d3_sign_idx), sub_rem_deg
 
 def calc_d12_dwadasamsa(sidereal_lon_deg: float) -> tuple[str, float]:
     """
@@ -94,7 +88,7 @@ def calc_d12_dwadasamsa(sidereal_lon_deg: float) -> tuple[str, float]:
     sub_rem_deg = (deg_in_sign % 2.5) * 12.0
     
     d12_sign_idx = (sign_idx + sub_idx) % 12
-    return get_sign_name(d12_sign_idx), sub_rem_deg
+    return sign_index_name(d12_sign_idx), sub_rem_deg
 
 def calc_d60_shashtiamsa(sidereal_lon_deg: float) -> tuple[str, float]:
     """
@@ -109,7 +103,7 @@ def calc_d60_shashtiamsa(sidereal_lon_deg: float) -> tuple[str, float]:
     sub_rem_deg = (deg_in_sign % 0.5) * 60.0
     
     d60_sign_idx = (sign_idx + sub_idx) % 12
-    return get_sign_name(d60_sign_idx), sub_rem_deg
+    return sign_index_name(d60_sign_idx), sub_rem_deg
 
 def calculate_divisional_charts(chart_data: Dict[str, Any], ayanamsha_mode: str = "lahiri") -> Dict[str, Any]:
     """

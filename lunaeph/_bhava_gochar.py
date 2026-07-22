@@ -3,13 +3,7 @@
 from __future__ import annotations
 import math
 from typing import Dict, Any, List
-from ._signs import SIGN_NAMES
-
-def get_sign_index(sign_name: str) -> int:
-    return SIGN_NAMES.index(sign_name)
-
-def get_sign_name(idx: int) -> str:
-    return SIGN_NAMES[idx % 12]
+from ._signs import SIGN_NAMES, sign_name_index, sign_index_name, sign_name_to_longitude
 
 def calc_bhava_chalit(chart_data: Dict[str, Any], ayanamsha_mode: str = "lahiri") -> Dict[str, Any]:
     """
@@ -23,7 +17,7 @@ def calc_bhava_chalit(chart_data: Dict[str, Any], ayanamsha_mode: str = "lahiri"
     
     planets = chart_data["planets"]
     houses = chart_data["houses"]
-    asc_deg = (houses["ascendant"]["degree"] + houses["ascendant"]["minute"] / 60.0) + ({"Aries":0, "Taurus":30, "Gemini":60, "Cancer":90, "Leo":120, "Virgo":150, "Libra":180, "Scorpio":210, "Sagittarius":240, "Capricorn":270, "Aquarius":300, "Pisces":330}[houses["ascendant"]["sign"]])
+    asc_deg = sign_name_to_longitude(houses["ascendant"]["sign"], houses["ascendant"]["degree"] + houses["ascendant"]["minute"] / 60.0)
     sid_asc_deg = (asc_deg - ayan) % 360.0
     
     bhava_results = {}
@@ -58,8 +52,8 @@ def calc_sade_sati(natal_moon_sidereal_sign: str, transit_saturn_sidereal_sign: 
     Check Indian Sade Sati (土星萨德萨蒂 - 7.5年大难/考验运).
     Active when transit Saturn is in the 12th, 1st, or 2nd house from natal Moon.
     """
-    moon_idx = get_sign_index(natal_moon_sidereal_sign)
-    saturn_idx = get_sign_index(transit_saturn_sidereal_sign)
+    moon_idx = sign_name_index(natal_moon_sidereal_sign)
+    saturn_idx = sign_name_index(transit_saturn_sidereal_sign)
     
     diff = (saturn_idx - moon_idx) % 12
     

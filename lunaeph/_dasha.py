@@ -3,15 +3,7 @@
 from __future__ import annotations
 from typing import Dict, Any, List
 from ._ayanamsha import calc_ayanamsha_deg
-
-# 27 Nakshatras (lunar mansions) names
-NAKSHATRA_NAMES = [
-    "Ashwini", "Bharani", "Krittika", "Rohini", "Mrigashira", "Ardra",
-    "Punarvasu", "Pushya", "Ashlesha", "Magha", "Purva Phalguni", "Uttara Phalguni",
-    "Hasta", "Chitra", "Swati", "Vishakha", "Anuradha", "Jyeshtha",
-    "Mula", "Purva Ashadha", "Uttara Ashadha", "Shravana", "Dhanishta", "Shatabhisha",
-    "Purva Bhadrapada", "Uttara Bhadrapada", "Revati"
-]
+from ._nakshatra import NAKSHATRA_NAMES
 
 # Fixed 9-planet Dasha order and years (Total 120 years)
 DASHA_ORDER = ["ketu", "venus", "sun", "moon", "mars", "rahu", "jupiter", "saturn", "mercury"]

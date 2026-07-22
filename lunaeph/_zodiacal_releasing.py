@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import Dict, Any, List
-from ._signs import SIGN_NAMES, degrees_to_zodiac
+from ._signs import SIGN_NAMES, degrees_to_zodiac, sign_name_index, sign_index_name
 
 # Sign durations in Years for Zodiacal Releasing (Valens / Chris Brennan)
 ZR_SIGN_YEARS = {
@@ -20,20 +20,15 @@ ZR_SIGN_YEARS = {
     "Pisces": 12.0,
 }
 
-def get_sign_index(sign_name: str) -> int:
-    return SIGN_NAMES.index(sign_name)
-
-def get_sign_name(idx: int) -> str:
-    return SIGN_NAMES[idx % 12]
 
 def calc_zr_l1_periods(start_sign: str, max_years: float = 100.0) -> List[Dict[str, Any]]:
     """Calculate Level 1 (L1) Zodiacal Releasing periods."""
     periods = []
-    current_idx = get_sign_index(start_sign)
+    current_idx = sign_name_index(start_sign)
     current_age = 0.0
     
     while current_age < max_years:
-        sign = get_sign_name(current_idx)
+        sign = sign_index_name(current_idx)
         duration = ZR_SIGN_YEARS[sign]
         end_age = current_age + duration
         
@@ -56,7 +51,7 @@ def calc_zr_l2_subperiods(l1_sign: str, l1_start_age: float, l1_duration: float)
     Handles 'Loosing of the Bond' (LB / 跳宫/解脱) when L2 exceeds 1 full cycle of 12 signs.
     """
     subperiods = []
-    l1_start_idx = get_sign_index(l1_sign)
+    l1_start_idx = sign_name_index(l1_sign)
     current_idx = l1_start_idx
     
     current_age = l1_start_age
@@ -66,7 +61,7 @@ def calc_zr_l2_subperiods(l1_sign: str, l1_start_age: float, l1_duration: float)
     sign_in_cycle = 0
     
     while current_age < l1_end_age:
-        sign = get_sign_name(current_idx)
+        sign = sign_index_name(current_idx)
         # 1 Month = 1/12 year = 0.0833333 years in 360-day year standard
         months_duration = ZR_SIGN_YEARS[sign]
         duration_years = months_duration / 12.0

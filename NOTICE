@@ -1,0 +1,33 @@
+LunaEph — Third-Party Notices
+===============================
+
+寿星天文历 (sxwnl)
+------------------
+The following algorithms are adapted from 寿星天文历 by 许剑伟:
+
+  - Equation of Time          (pty_zty2)
+  - Sunrise / Sunset / Twilight (sunShengJ, SZJ.St)
+  - Syzygy sequence            (suoN, so_low)
+  - Prenatal syzygy search     (so_low-based search)
+
+寿星天文历 copyright notice (translated):
+
+  本程序是开源的，你可以使用其中的任意部分代码，但不得随意修改
+  "天文算法(eph.js)"及"农历算法(lunar.js)中古历部分的数据及算法"。
+  一旦修改可能影响万年历的准确性，如果你对天文学不太了解而仅凭
+  对历法的热情，请不要对此做任何修改，以免弄巧成拙。
+
+  如果在你自己开发的软件中使用了本程序的核心算法及数据，你可以
+  在你的软件中申明"数据或算法来源于寿星天文历"，也可以不申明，
+  但不可以申明为它其它来源。如有异义，可与我共内探讨。
+
+  — 许剑伟 (xunmeng04#163.com)
+    https://github.com/sxwnl/sxwnl
+
+
+taiyin-ephemeris
+----------------
+Atmospheric refraction models (Bennett, hybrid Bennett+Smart) and the
+WGS84 geodetic-to-ECEF conversion are adapted from taiyin-ephemeris.
+
+  Apache 2.0 — https://github.com/RedSC1/taiyin-ephemeris

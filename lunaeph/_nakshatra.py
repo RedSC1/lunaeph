@@ -10,6 +10,7 @@ Supports:
 from __future__ import annotations
 import math
 from typing import Dict, Any, List, Tuple
+from ._signs import SIGN_NAMES
 
 # ─────────────────────────────────────────────────────────────────
 # 27 Nakshatras Master Table
@@ -65,6 +66,9 @@ ABHIJIT = {
     "note": "Intercalary 28th Nakshatra, used in Muhurta & Sarvatobhadra Chakra"
 }
 
+# Extract just the names for modules that need a simple list
+NAKSHATRA_NAMES = [row[0] for row in NAKSHATRA_27]
+
 # ─────────────────────────────────────────────────────────────────
 # Pada → Navamsha Sign Mapping
 # 108 Padas cycle through 12 signs starting from Aries:
@@ -72,10 +76,7 @@ ABHIJIT = {
 # Navamsha sign index = pada_global_index % 12
 # ─────────────────────────────────────────────────────────────────
 
-SIGN_NAMES_NAV = [
-    "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
-    "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"
-]
+# SIGN_NAMES imported from _signs (line 12) — canonical source for sign name list
 
 # ─────────────────────────────────────────────────────────────────
 # Pushkara Navamsha: Specific Navamsha ranges per sign element
@@ -148,11 +149,11 @@ def get_nakshatra_info(sidereal_lon_deg: float, system: str = "27") -> Dict[str,
     # ── Pada → Navamsha Sign ──
     pada_global_idx = (nak_idx * 4) + (pada - 1)
     navamsha_sign_idx = pada_global_idx % 12
-    navamsha_sign = SIGN_NAMES_NAV[navamsha_sign_idx]
+    navamsha_sign = SIGN_NAMES[navamsha_sign_idx]
 
     # ── Rashi (sidereal sign) ──
     rashi_sign_idx = int(deg // 30.0) % 12
-    rashi_sign = SIGN_NAMES_NAV[rashi_sign_idx]
+    rashi_sign = SIGN_NAMES[rashi_sign_idx]
     deg_in_sign = deg % 30.0
 
     # ── Vargottama: same sign in D1 and D9 ──

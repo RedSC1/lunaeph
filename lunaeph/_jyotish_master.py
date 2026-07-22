@@ -3,19 +3,13 @@
 from __future__ import annotations
 import math
 from typing import Dict, Any, List
-from ._signs import SIGN_NAMES, degrees_to_zodiac
+from ._signs import SIGN_NAMES, degrees_to_zodiac, sign_name_to_longitude
+from ._nakshatra import NAKSHATRA_NAMES
+from ._dasha import DASHA_ORDER
 
 # 9-planet Vimshottari order & years for KP Sub-lord calculation
-KP_ORDER = ["ketu", "venus", "sun", "moon", "mars", "rahu", "jupiter", "saturn", "mercury"]
+KP_ORDER = DASHA_ORDER  # alias for backward compatibility
 KP_YEARS = [7.0, 20.0, 6.0, 10.0, 7.0, 18.0, 16.0, 19.0, 17.0] # Total 120
-
-NAKSHATRA_NAMES = [
-    "Ashwini", "Bharani", "Krittika", "Rohini", "Mrigashira", "Ardra",
-    "Punarvasu", "Pushya", "Ashlesha", "Magha", "Purva Phalguni", "Uttara Phalguni",
-    "Hasta", "Chitra", "Swati", "Vishakha", "Anuradha", "Jyeshtha",
-    "Mula", "Purva Ashadha", "Uttara Ashadha", "Shravana", "Dhanishta", "Shatabhisha",
-    "Purva Bhadrapada", "Uttara Bhadrapada", "Revati"
-]
 
 # Naisargika (Natural) Planetary Friendships in Jyotish
 NAISARGIKA_FRIENDS = {
@@ -98,7 +92,7 @@ def calc_panchadha_maitri(chart_data: Dict[str, Any], ayanamsha_mode: str = "lah
     ayan = calc_ayanamsha_deg(jd_tt, ayanamsha_mode)
     planets = chart_data["planets"]
     houses = chart_data["houses"]
-    asc_deg = (houses["ascendant"]["degree"] + houses["ascendant"]["minute"] / 60.0) + ({"Aries":0, "Taurus":30, "Gemini":60, "Cancer":90, "Leo":120, "Virgo":150, "Libra":180, "Scorpio":210, "Sagittarius":240, "Capricorn":270, "Aquarius":300, "Pisces":330}[houses["ascendant"]["sign"]])
+    asc_deg = sign_name_to_longitude(houses["ascendant"]["sign"], houses["ascendant"]["degree"] + houses["ascendant"]["minute"] / 60.0)
     sid_asc_deg = (asc_deg - ayan) % 360.0
     asc_sign_idx = int(sid_asc_deg // 30.0)
     

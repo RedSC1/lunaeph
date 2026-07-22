@@ -6,6 +6,7 @@ Classical Parashari Ashtakavarga bindu rules for 7 planets + Lagna.
 from __future__ import annotations
 import math
 from typing import Dict, Any, List
+from ._signs import sign_name_to_longitude
 
 # Benefic point (bindu) positions FROM each contributor for each planet's Ashtakavarga.
 # Key: planet whose BAV we are computing. Value: dict of contributor -> list of houses (1-12) that give bindu.
@@ -83,9 +84,6 @@ _BAV_RULES = {
     },
 }
 
-_SIGN_OFFSET = {"Aries":0,"Taurus":30,"Gemini":60,"Cancer":90,"Leo":120,"Virgo":150,
-                "Libra":180,"Scorpio":210,"Sagittarius":240,"Capricorn":270,"Aquarius":300,"Pisces":330}
-
 def calc_ashtakavarga(chart_data: Dict[str, Any], ayanamsha_mode: str = "lahiri") -> Dict[str, Any]:
     """
     Calculate Sarvashtakavarga (八分点力量表).
@@ -111,7 +109,7 @@ def calc_ashtakavarga(chart_data: Dict[str, Any], ayanamsha_mode: str = "lahiri"
             contrib_signs[pk] = _sid_sign_idx(planets[pk]["longitude_rad"])
 
     # Lagna sidereal sign index
-    asc_deg = (houses["ascendant"]["degree"] + houses["ascendant"]["minute"]/60.0) + _SIGN_OFFSET[houses["ascendant"]["sign"]]
+    asc_deg = sign_name_to_longitude(houses["ascendant"]["sign"], houses["ascendant"]["degree"] + houses["ascendant"]["minute"]/60.0)
     asc_sid = (asc_deg - ayan) % 360.0
     contrib_signs["lagna"] = int(asc_sid // 30.0)
 

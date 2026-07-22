@@ -4,6 +4,7 @@ from __future__ import annotations
 import math
 from typing import Dict, Any, List
 from ._classical import TRADITIONAL_PLANETS
+from ._signs import sign_name_to_longitude, degrees_to_zodiac
 
 KARAKA_NAMES_7 = [
     ("Atmakaraka", "AK", "Soul & Core Destiny (灵魂星)"),
@@ -90,7 +91,7 @@ def calc_huber_age_point(chart_data: Dict[str, Any], age_years: float) -> Dict[s
     Age 72 = Ascendant (Full 72-year lifecycle)
     """
     houses = chart_data["houses"]
-    asc_deg = (houses["ascendant"]["degree"] + houses["ascendant"]["minute"] / 60.0) + ({"Aries":0, "Taurus":30, "Gemini":60, "Cancer":90, "Leo":120, "Virgo":150, "Libra":180, "Scorpio":210, "Sagittarius":240, "Capricorn":270, "Aquarius":300, "Pisces":330}[houses["ascendant"]["sign"]])
+    asc_deg = sign_name_to_longitude(houses["ascendant"]["sign"], houses["ascendant"]["degree"] + houses["ascendant"]["minute"] / 60.0)
     
     # 6 years per house (Total 72 years for 12 houses)
     cycle_age = age_years % 72.0
@@ -101,7 +102,6 @@ def calc_huber_age_point(chart_data: Dict[str, Any], age_years: float) -> Dict[s
     
     # Calculate exact Age Point ecliptic longitude
     ap_lon_deg = (asc_deg + (cycle_age / 72.0) * 360.0) % 360.0
-    from ._signs import degrees_to_zodiac
     sign, deg_in_sign = degrees_to_zodiac(ap_lon_deg)
     
     return {
