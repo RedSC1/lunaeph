@@ -45,31 +45,62 @@ def angular_separation_deg(lon1_rad: float, lon2_rad: float) -> float:
 def find_aspects(
     bodies: dict[str, float],
     orbs: dict[str, float] | None = None,
+    custom: list[tuple[str, float, float]] | None = None,
 ) -> list[dict]:
     """Find all aspects among bodies.
 
     Parameters
     ----------
     bodies: {name: ecliptic_longitude_rad}
-    orbs: optional {aspect_name: orb_deg} overrides
+    orbs: optional {aspect_name: orb_deg} overrides for built-in aspects.
+        A key not matching any built-in aspect gets auto-registered as
+        a custom aspect: ``name`` must be "angle_num" (e.g. "70.0").
+    custom: optional list of (name, angle_deg, orb_deg) for additional
+        custom aspects beyond what *orbs* provides.
 
     Returns: list of dicts with body1, body2, aspect, angle_deg, orb_deg.
     """
+    # Build the full aspect list: builtins + custom
+    all_aspects: list[tuple[str, float, float, bool]] = [
+        (a.name, a.angle_deg, a.orb_deg, a.major) for a in ASPECTS
+    ]
+    # Override orbs for builtins, add auto-registered customs
+    if orbs:
+        for key, orb_val in orbs.items():
+            found = False
+            for i, (name, ang, _, major) in enumerate(all_aspects):
+                if name == key:
+                    all_aspects[i] = (name, ang, orb_val, major)
+                    found = True
+                    break
+            if not found:
+                # Auto-register: key is the angle as string, e.g. "70.0"
+                try:
+                    angle = float(key)
+                except ValueError:
+                    continue
+                all_aspects.append((key, angle, orb_val, False))
+    # Append explicit custom aspects
+    if custom:
+        for name, angle, orb_val in custom:
+            all_aspects.append((name, angle, orb_val, False))
+
     names = sorted(bodies.keys())
     results = []
     for i in range(len(names)):
         for j in range(i + 1, len(names)):
             sep = angular_separation_deg(bodies[names[i]], bodies[names[j]])
-            for asp in ASPECTS:
-                orb = (orbs or {}).get(asp.name, asp.orb_deg)
-                if abs(sep - asp.angle_deg) <= orb:
+            for name, angle, orb, major in all_aspects:
+                if orb <= 0.0:
+                    continue
+                if abs(sep - angle) <= orb:
                     results.append({
                         "body1": names[i],
                         "body2": names[j],
-                        "aspect": asp.name,
+                        "aspect": name,
                         "angle_deg": round(sep, 4),
-                        "orb_deg": round(abs(sep - asp.angle_deg), 4),
-                        "major": asp.major,
+                        "orb_deg": round(abs(sep - angle), 4),
+                        "major": major,
                     })
                     break  # closest matching aspect only
     return results

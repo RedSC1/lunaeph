@@ -78,20 +78,35 @@ class Chart(dict):
         super().__init__(data)
         self._body_lons = {k: p["longitude_rad"] for k, p in data["planets"].items()}
         self._aspect_orbs: dict[str, float] = dict(aspect_orbs or {})
+        # Custom aspects: list of (name, angle_deg, orb_deg)
+        self._custom_aspects: list[tuple[str, float, float]] = []
 
-    def set_orb(self, angle: float | str | int, orb_deg: float) -> "Chart":
+    def set_orb(self, angle: float | str | int, orb_deg: float,
+                name: str | None = None) -> "Chart":
         """Set the orb (in degrees) for an aspect angle and recompute.
 
         ``angle`` can be a number (60, 120, etc.) or a string ("60", "120").
+        If ``angle`` matches a built-in aspect, its orb is overridden.
+        If it's a new angle, a custom aspect is auto-registered.
+
+        ``name`` optionally gives the custom aspect a display name
+        (default: the angle as a string, e.g. ``"70.0"``).
         """
         if isinstance(angle, str):
-            angle = _ANGLE_ALIASES.get(angle, float(angle))
+            angle = float(_ANGLE_ALIASES.get(angle, angle))
         angle = float(angle)
-        name = _ASPECT_ANGLE_TO_NAME.get(angle)
-        if name is None:
-            raise KeyError(f"unknown aspect angle: {angle}")
-        self._aspect_orbs[name] = float(orb_deg)
-        self["aspects"] = find_aspects(self._body_lons, orbs=self._aspect_orbs)
+        builtin = _ASPECT_ANGLE_TO_NAME.get(angle)
+        if builtin is not None:
+            self._aspect_orbs[builtin] = float(orb_deg)
+        else:
+            display = name if name else str(angle)
+            # Replace any previous custom entry at the same angle
+            self._custom_aspects = [
+                (n, a, o) for n, a, o in self._custom_aspects if a != angle
+            ]
+            self._custom_aspects.append((display, angle, float(orb_deg)))
+        self["aspects"] = find_aspects(
+            self._body_lons, orbs=self._aspect_orbs, custom=self._custom_aspects)
         return self
 
 
