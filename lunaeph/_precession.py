@@ -246,15 +246,18 @@ def _vondrak_periodic_sum(terms, t: float) -> tuple[float, float]:
     return result_0, result_1
 
 
-def _frame_bias_matrix():
-    """IAU 2006 ICRF → J2000 mean equator/equinox frame bias."""
-    return _3x3_multiply(
-        _3x3_multiply(
-            _rotation_x(-_FRAME_BIAS_DE_RAD),
-            _rotation_y(_FRAME_BIAS_DX_RAD),
-        ),
-        _rotation_z(_FRAME_BIAS_DR_RAD),
-    )
+# Precomputed at import time: three rotations combined (angles are constants).
+# Small-angle skew-symmetric equivalent:
+#   [[ 1,     dr,  -dx ],
+#    [ -dr,   1,   -de ],
+#    [ dx,    de,   1  ]]
+_FRAME_BIAS_MATRIX = _3x3_multiply(
+    _3x3_multiply(
+        _rotation_x(-_FRAME_BIAS_DE_RAD),
+        _rotation_y(_FRAME_BIAS_DX_RAD),
+    ),
+    _rotation_z(_FRAME_BIAS_DR_RAD),
+)
 
 
 def _cross(a, b):
@@ -336,7 +339,7 @@ def vondrak2011_precession_matrix(
         (equinox_y[0],   equinox_y[1],   equinox_y[2]),
         (equator_pole[0], equator_pole[1], equator_pole[2]),
     )
-    matrix = _3x3_multiply(rp, _frame_bias_matrix())
+    matrix = _3x3_multiply(rp, _FRAME_BIAS_MATRIX)
     obliquity = mean_obliquity_rad(jd_tt)
     return matrix, obliquity
 
