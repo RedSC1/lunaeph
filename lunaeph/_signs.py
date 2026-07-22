@@ -56,7 +56,7 @@ FALL = [
 
 
 class SignInfo(NamedTuple):
-    index: int        # 0–11
+    number: int       # 0–11
     name: str
     abbrev: str
     element: str
