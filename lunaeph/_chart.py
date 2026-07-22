@@ -69,25 +69,34 @@ class Chart(dict):
         super().__init__(data)
         self._body_lons = {k: p["longitude_rad"]
                            for k, p in data["planets"].items()}
+        from ._aspects import DEFAULT_ORBS
+        self._orbs: dict[float, float] = dict(DEFAULT_ORBS)
 
     def set_orb(self, angle: float | str | int, orb_deg: float) -> "Chart":
         """Set aspect *orb_deg* (in degrees) for *angle* and recompute.
 
         Only recomputes that one angle — other aspects are untouched.
-        *angle* can be a number (60, 120, …) or string ("60", "120").
+        Pass *orb_deg* = 0.0 to disable the aspect entirely.
         """
         angle = float(angle)
+        self._orbs[angle] = float(orb_deg)
 
-        # 1. Remove old entries for this angle
-        from ._aspects import _ANGLE_NAMES
-        name = _ANGLE_NAMES.get(angle, str(angle))
-        self["aspects"] = [a for a in self["aspects"] if a["aspect"] != name]
+        # Delete old entries by aspect_angle_deg (works for custom angles too)
+        self["aspects"] = [
+            a for a in self["aspects"] if a["aspect_angle_deg"] != angle
+        ]
 
-        # 2. Compute new entries and insert
-        from ._aspects import _compute_angle_aspects
-        new = _compute_angle_aspects(self._body_lons, angle, float(orb_deg))
-        self["aspects"].extend(new)
+        # Recompute if orb > 0
+        if orb_deg > 0.0:
+            from ._aspects import _compute_angle_aspects
+            self["aspects"].extend(
+                _compute_angle_aspects(self._body_lons, angle, orb_deg))
         return self
+
+    def reset_orb(self, angle: float | str | int) -> "Chart":
+        """Restore the default orb for *angle*."""
+        from ._aspects import DEFAULT_ORBS
+        return self.set_orb(angle, DEFAULT_ORBS.get(float(angle), 0.0))
 
 
 def calculate_chart(
@@ -98,6 +107,7 @@ def calculate_chart(
     minute: int = 0,
     second: float = 0.0,
     *,
+    tz: float = 0.0,
     latitude_deg: float = 0.0,
     longitude_deg: float = 0.0,
     house_system: HouseSystem = HouseSystem.PLACIDUS,
@@ -121,7 +131,9 @@ def calculate_chart(
     Returns: dict with jd, date, observer, planets, houses, aspects.
     """
     # --- time ---
-    jd_utc = calendar_to_jd(year, month, day, hour, minute, second)
+    # Convert local time → UTC
+    utc_hour = hour - tz
+    jd_utc = calendar_to_jd(year, month, day, utc_hour, minute, second)
     jd_tt = jd_ut1_to_tt(jd_utc)  # approximation: UTC≈UT1
 
     lat_rad = math.radians(latitude_deg)

@@ -1,6 +1,6 @@
 """Aspect calculation.
 
-All angles in degrees.  Built-in orbs are read-only defaults.
+Built-in orbs are read-only defaults.  One source table — no duplication.
 """
 
 from __future__ import annotations
@@ -9,30 +9,29 @@ import math
 
 TWO_PI = 2.0 * math.pi
 
-# Read-only default orb table: {angle_deg: orb_deg}
-DEFAULT_ORBS: dict[float, float] = {
-    0.0:   8.0,    # conjunction
-    30.0:  2.0,    # semisextile
-    45.0:  2.0,    # semisquare
-    60.0:  5.0,    # sextile
-    72.0:  1.5,    # quintile
-    90.0:  7.0,    # square
-    120.0: 7.0,    # trine
-    135.0: 2.0,    # sesquiquadrate
-    144.0: 1.5,    # biquintile
-    150.0: 3.0,    # quincunx
-    180.0: 8.0,    # opposition
+# (name, default_orb_deg, major)
+_AspectSpec = tuple[str, float, bool]
+
+# Single source of truth — angle → (name, orb, major)
+_DEFAULT_SPECS: dict[float, _AspectSpec] = {
+    0.0:   ("conjunction",      8.0, True),
+    30.0:  ("semisextile",      2.0, False),
+    36.0:  ("decile",           2.0, False),
+    45.0:  ("semisquare",       2.0, False),
+    60.0:  ("sextile",          5.0, True),
+    72.0:  ("quintile",         1.5, False),
+    90.0:  ("square",           7.0, True),
+    120.0: ("trine",            7.0, True),
+    135.0: ("sesquiquadrate",   2.0, False),
+    144.0: ("biquintile",       1.5, False),
+    150.0: ("quincunx",         3.0, False),
+    180.0: ("opposition",       8.0, True),
 }
 
-# Display names for built-in angles
-_ANGLE_NAMES: dict[float, str] = {
-    0.0: "conjunction", 30.0: "semisextile", 45.0: "semisquare",
-    60.0: "sextile", 72.0: "quintile", 90.0: "square",
-    120.0: "trine", 135.0: "sesquiquadrate", 144.0: "biquintile",
-    150.0: "quincunx", 180.0: "opposition",
-}
-
-_MAJOR_ANGLES = {0.0, 60.0, 90.0, 120.0, 180.0}
+# Derived read-only views (never modified)
+DEFAULT_ORBS: dict[float, float] = {a: s[1] for a, s in _DEFAULT_SPECS.items()}
+_ANGLE_NAMES: dict[float, str] = {a: s[0] for a, s in _DEFAULT_SPECS.items()}
+_ANGLE_MAJOR: set[float] = {a for a, s in _DEFAULT_SPECS.items() if s[2]}
 
 
 def angular_separation_deg(lon1_rad: float, lon2_rad: float) -> float:
@@ -49,9 +48,10 @@ def _compute_angle_aspects(
     orb_deg: float,
 ) -> list[dict]:
     """Scan all body pairs for a single aspect angle."""
+    spec = _DEFAULT_SPECS.get(angle_deg)
+    name = spec[0] if spec else str(angle_deg)
+    major = angle_deg in _ANGLE_MAJOR
     names = sorted(bodies.keys())
-    name = _ANGLE_NAMES.get(angle_deg, str(angle_deg))
-    major = angle_deg in _MAJOR_ANGLES
     results = []
     for i in range(len(names)):
         for j in range(i + 1, len(names)):
@@ -62,7 +62,8 @@ def _compute_angle_aspects(
                     "body1": names[i],
                     "body2": names[j],
                     "aspect": name,
-                    "angle_deg": round(sep, 4),
+                    "aspect_angle_deg": angle_deg,
+                    "separation_deg": round(sep, 4),
                     "orb_deg": round(diff, 4),
                     "major": major,
                 })
