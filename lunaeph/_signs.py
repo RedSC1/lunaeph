@@ -93,3 +93,12 @@ def sign_degree_minute(longitude_rad: float) -> tuple[SignInfo, int, int]:
         m = 0
         d += 1
     return _SIGNS[idx % 12], d, m
+
+
+def degrees_to_zodiac(deg_total: float) -> tuple[str, float]:
+    """Convert total ecliptic longitude in degrees to (sign_name, degree_in_sign)."""
+    deg = deg_total % 360.0
+    idx = int(deg // 30)
+    pos = deg % 30.0
+    return SIGN_NAMES[idx % 12], pos
+

@@ -39,3 +39,4 @@ htmlcov/
 # Misc
 *.log
 .env
+.deps/

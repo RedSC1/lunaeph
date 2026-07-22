@@ -1,10 +1,9 @@
 # LunaEph
 
-A thin western astrology library on top of
+A thin, pure-Python western astrology library built on top of
 [taiyin-ephemeris-semi-analytic](https://pypi.org/project/taiyin-ephemeris-semi-analytic/).
 
-Pure Python.  Zero native deps beyond taiyin.  Covers −3000 to +3000.
-`pip install` and go.
+Pure Python.  Zero native C/C++ dependencies (`pip install` and go).  Covers −3000 to +3000.
 
 ## Quick start
 
@@ -43,6 +42,38 @@ chart.aspects_between("sun", "moon")
 chart.set_orb(60, 1.0)       # sextile → 1 degree orb
 chart.set_orb(100, 2.0)      # custom angle
 chart.reset_orb(60)          # back to default
+```
+
+### Relationship & Predictive Charts
+
+```python
+chart_a = calculate_chart(1990, 1, 1, 12, 0, latitude_deg=51.5, longitude_deg=-0.1)
+chart_b = calculate_chart(1992, 6, 15, 18, 30, latitude_deg=40.7, longitude_deg=-74.0)
+
+# Synastry (Cross-chart aspects + house placements)
+syn = chart_a.synastry_with(chart_b)
+
+# Midpoint Composite Chart
+comp = chart_a.composite_with(chart_b)
+
+# Davison Time & Space Midpoint Chart
+dav = chart_a.davison_with(chart_b, mode="spherical") # or mode="arithmetic"
+
+# Progressions & Directions
+prog = chart_a.secondary_progression(years=30.0)      # 1 day = 1 year (Age 30 = +30 days)
+tert = chart_a.tertiary_progression(years=30.0)       # Tertiary I (1 day = 1 tropical month)
+minor = chart_a.minor_progression(years=30.0)         # Minor (1 synodic month = 1 year of life)
+sa = chart_a.solar_arc(years=30.0)                    # True Solar Arc (secondary Sun delta)
+naibod = chart_a.naibod_direction(years=30.0)         # Naibod Arc (0.9856°/year)
+
+# Solar & Lunar Returns (Exact root finding)
+sr = chart_a.solar_return(2025)
+lr = chart_a.lunar_return(2025, 3)
+
+# Derived Compositions
+comp_prog = chart_a.composite_secondary(chart_b, 30.0)
+dav_tert = chart_a.davison_tertiary(chart_b, 30.0)
+marks = chart_a.marks_secondary(chart_b, 30.0)
 ```
 
 ## Demo output
@@ -95,7 +126,7 @@ chart.reset_orb(60)          # back to default
 │ Jupiter  │ Neptune  │ opposition       │ 3.32° │ A    │
 │ Jupiter  │ Venus    │ opposition       │ 3.88° │ A    │
 │ Pluto    │ Saturn   │ opposition       │ 2.55° │ A    │
-└──────────┴──────────┴──────────────────┴───────┴──────┘
+└──────────┴───────────────┴──────────────────┴───────┴──────┘
 ```
 
 ## Features
@@ -110,7 +141,29 @@ chart.reset_orb(60)          # back to default
   Regiomontanus, Campanus, Alcabitius — extensible registry
 - **Custom aspect angles** — `set_orb(70, 2.0)` — all angles are first-class
 - **Per-angle orb tuning** — `set_orb()` touches only that angle, others untouched
-- **Zodiac signs** with element, modality, ruler, detriment, exaltation, fall
+- **Relationship charts** — Synastry, Composite, Davison
+- **Predictive charts** — Secondary progression, Tertiary progression I & Minor progression, True Solar Arc, Naibod direction, Solar Return, Lunar Return
+- **Zero external solver dependencies** — Pure Python Brent root finding for exact return recurrence
+
+## Astrological Conventions & Schools
+
+| Feature | Method / Convention | Astrodienst / SwissEph Alignment |
+|---|---|---|
+| **Synastry** | Cross-chart aspects strictly between A and B; A-in-B and B-in-A house placements; bodies kept in distinct dictionary structures. | Astrodienst Synastry standard |
+| **Composite** | Short-arc circular midpoints for planets; 180° ambiguity resolved towards Ascendant; house cusps recalculated from composite ARMC midpoint & spherical midpoint location. | Hand (1975) / Astrodienst Composite convention |
+| **Davison** | Exact time midpoint; spherical 3D vector midpoint (default `mode="spherical"`) or arithmetic coordinate mean (`mode="arithmetic"`). | Davison Time/Space chart |
+| **Secondary Progression** | 1 ephemeris day per tropical year of life ($365.2421897$ days). Age 30 corresponds to $+30$ ephemeris days after birth. | Astrodienst Secondary Progression |
+| **Tertiary Progression I** | 1 ephemeris day = 1 tropical month of life (~$27.32158218$ days). | Astrodienst Tertiary I |
+| **Minor Progression** | 1 synodic month of life (~$29.530589$ days) = 1 ephemeris day (Tertiary II). | Astrodienst Minor Progression |
+| **Solar Arc** | True solar arc direction ($\Delta\lambda_{\odot} = \text{Sun}_{\text{progressed}} - \text{Sun}_{\text{natal}}$). | Astrodienst Solar Arc |
+| **Naibod Arc** | Fixed mean solar rate direction ($0.9856^\circ/\text{year}$). | Naibod direction option |
+| **Solar / Lunar Returns** | Pure-Python Brent's method solving exact true-ecliptic longitude recurrence ($< 10^{-5}$ rad error). | Astrodienst Solar/Lunar Return |
+
+## Scope & Limitations
+
+- **Pure Python focus**: Designed for lightweight Python applications that cannot build native C/C++ extensions (`pyswisseph`).
+- **Celestial Bodies**: Currently includes 10 main planets. Lunar Nodes (True/Mean), Lilith, Chiron, and Fortuna are planned for v0.2.
+- **Ephemeris Range**: −3000 to +3000 (inherited from Vondrák 2011 precession & taiyin semi-analytic model).
 
 ## Astronomy
 

@@ -11,11 +11,28 @@ Usage
 'Aries'
 """
 
-from ._chart import calculate_chart, Chart
+from ._chart import calculate_chart, Chart, search_solar_longitude, search_lunar_longitude
 from ._houses import HouseSystem, calc_houses, calc_placidus_houses
 from ._aspects import find_all_aspects, angular_separation_deg, DEFAULT_ORBS
 from ._signs import sign_from_longitude, sign_degree_minute, SIGN_NAMES
 from ._time import calendar_to_jd, jd_to_calendar, delta_t_seconds_from_jd_ut1
+from ._firdaria import calc_firdaria_timeline, get_current_firdaria
+from ._lots import calculate_lots
+from ._profections import calc_profection
+from ._ayanamsha import calc_ayanamsha_deg
+from ._zodiacal_releasing import calc_zr_l1_periods, get_current_zr
+from ._almuten import calculate_almuten_figuris
+from ._dasha import calc_vimshottari_timeline, get_current_dasha
+from ._vargas import calculate_divisional_charts
+from ._primary_directions import calc_primary_directions
+from ._bhava_gochar import calc_bhava_chalit, calc_sade_sati
+from ._jyotish_master import calc_upagrahas, calc_kp_sublord, calc_panchadha_maitri
+from ._jaimini_huber import calc_jaimini_chara_karakas, calc_huber_age_point
+from ._ashtakavarga import calc_ashtakavarga
+from ._arudha_pada import calc_arudha_padas
+from ._yogini_dasha import calc_yogini_dasha
+from ._nakshatra import get_nakshatra_info, calc_nakshatra_chart, calc_nakshatra_compatibility
+from ._karaka import calc_all_karakas
 from ._precession import (
     iau2000b_nutation_angles,
     equation_of_equinoxes_rad,
@@ -26,6 +43,8 @@ __all__ = [
     # chart
     "calculate_chart",
     "Chart",
+    "search_solar_longitude",
+    "search_lunar_longitude",
     # houses
     "HouseSystem",
     "calc_houses",
@@ -42,6 +61,34 @@ __all__ = [
     "calendar_to_jd",
     "jd_to_calendar",
     "delta_t_seconds_from_jd_ut1",
+    # firdaria
+    "calc_firdaria_timeline",
+    "get_current_firdaria",
+    # lots & profections & ayanamsha & ZR
+    "calculate_lots",
+    "calc_profection",
+    "calc_ayanamsha_deg",
+    "calc_zr_l1_periods",
+    "get_current_zr",
+    "calculate_almuten_figuris",
+    "calc_vimshottari_timeline",
+    "get_current_dasha",
+    "calculate_divisional_charts",
+    "calc_primary_directions",
+    "calc_bhava_chalit",
+    "calc_sade_sati",
+    "calc_upagrahas",
+    "calc_kp_sublord",
+    "calc_panchadha_maitri",
+    "calc_jaimini_chara_karakas",
+    "calc_huber_age_point",
+    "calc_ashtakavarga",
+    "calc_arudha_padas",
+    "calc_yogini_dasha",
+    "get_nakshatra_info",
+    "calc_nakshatra_chart",
+    "calc_nakshatra_compatibility",
+    "calc_all_karakas",
     # precession
     "iau2000b_nutation_angles",
     "equation_of_equinoxes_rad",

@@ -16,6 +16,7 @@ Model choices (hardcoded):
 from __future__ import annotations
 
 import math
+import functools
 from typing import Sequence
 
 from ._time import ARCSEC_TO_RAD, DAYS_PER_JULIAN_CENTURY, JD_J2000, TWO_PI
@@ -298,6 +299,7 @@ def mean_obliquity_rad(jd_tt: float) -> float:
 # Public: precession
 # ---------------------------------------------------------------------------
 
+@functools.lru_cache(maxsize=128)
 def vondrak2011_precession_matrix(
     jd_tt: float,
 ) -> tuple:
@@ -359,6 +361,7 @@ def _iau2000b_fundamental_args(t: float) -> list[float]:
     ]
 
 
+@functools.lru_cache(maxsize=128)
 def iau2000b_nutation_angles(
     jd_tt: float,
 ) -> dict[str, float]:
