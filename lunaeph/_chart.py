@@ -98,6 +98,43 @@ class Chart(dict):
         from ._aspects import DEFAULT_ORBS
         return self.set_orb(angle, DEFAULT_ORBS.get(float(angle), 0.0))
 
+    # -- convenience accessors --
+
+    def planet(self, name: str) -> dict:
+        """Return a planet dict e.g. chart.planet('sun')."""
+        return self["planets"][name]
+
+    @property
+    def planets(self) -> list[str]:
+        """List of planet keys."""
+        return list(self["planets"].keys())
+
+    def house_cusp(self, n: int) -> dict:
+        """Return house *n* cusp (1-indexed) e.g. chart.house_cusp(1)."""
+        return self["houses"]["cusps"][n - 1]
+
+    @property
+    def ascendant(self) -> dict:
+        return self["houses"]["ascendant"]
+
+    @property
+    def midheaven(self) -> dict:
+        return self["houses"]["midheaven"]
+
+    @property
+    def vertex(self) -> dict:
+        return self["houses"]["vertex"]
+
+    def aspects_to(self, body: str) -> list[dict]:
+        """All aspects involving *body*."""
+        return [a for a in self["aspects"]
+                if a["body1"] == body or a["body2"] == body]
+
+    def aspects_between(self, a: str, b: str) -> list[dict]:
+        """Aspects between two specific bodies."""
+        return [x for x in self["aspects"]
+                if {x["body1"], x["body2"]} == {a, b}]
+
 
 def calculate_chart(
     year: int,
