@@ -3,7 +3,8 @@
 A thin western astrology library on top of
 [taiyin-ephemeris-semi-analytic](https://pypi.org/project/taiyin-ephemeris-semi-analytic/).
 
-Pure Python.  Zero native deps beyond taiyin.  `pip install` and go.
+Pure Python.  Zero native deps beyond taiyin.  Covers −3000 to +3000.
+`pip install` and go.
 
 ## Quick start
 
