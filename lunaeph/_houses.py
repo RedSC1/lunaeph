@@ -198,7 +198,7 @@ def _eval_placidus(armc: float, obl: float, lat: float,
     c12 = _placidus_cusp_iter(armc + math.pi / 3.0,       p12, lat, obl, 1.5)
     c2  = _placidus_cusp_iter(armc + 2.0 * math.pi / 3.0, p12, lat, obl, 1.5)
     c3  = _placidus_cusp_iter(armc + 5.0 * math.pi / 6.0, p11, lat, obl, 3.0)
-    if any(c is None for c in (c2, c3, c11, c12)):
+    if c2 is None or c3 is None or c11 is None or c12 is None:
         return False
     _fill_quadrant(asc, mc, c2, c3, c11, c12, out)
     return True
