@@ -76,10 +76,9 @@ class DeltaTJDOracleTests(unittest.TestCase):
                 actual = _time.delta_t_seconds_from_jd_ut1(jd_ut1)
                 self.assertAlmostEqual(actual, expected, delta=1e-10)
 
-        # JD 2086302.5 ≈ year 1000 — tiny mismatch in calendar-convention
-        # fractional-year vs the C++ decimal-year path (< 0.1 s).
+        # JD 2086302.5 ≈ year 1000 — must use Julian leap-year rules
         actual = _time.delta_t_seconds_from_jd_ut1(2086302.5)
-        self.assertAlmostEqual(actual, 1650.4617878426973, delta=0.1)
+        self.assertAlmostEqual(actual, 1650.4617878426973, delta=1e-10)
 
     def test_delta_t_from_tt_jd(self):
         cases = [

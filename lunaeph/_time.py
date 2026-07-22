@@ -137,22 +137,22 @@ def _normalize_radians(angle: float) -> float:
     return angle % TWO_PI
 
 
-def _decimal_year_from_jd(jd: float) -> float:
-    """Convert Julian date to decimal year."""
-    year, month, day = _jd_to_calendar_date(jd)
-    days_in_year = 366.0 if _is_leap(year) else 365.0
-    # approximate: fraction from start of year
-    jd_start = _calendar_date_to_jd(year, 1, 1.0)
-    return year + (jd - jd_start) / days_in_year
-
-
 def _is_leap(year: int) -> bool:
     """Gregorian calendar leap year."""
-    if year % 4 != 0:
-        return False
-    if year % 100 != 0:
-        return True
-    return year % 400 == 0
+    return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+
+
+def _decimal_year_from_jd(jd: float) -> float:
+    """Convert Julian date to decimal year.
+
+    Matches taiyin C++ decimal_year_from_jd() exactly:
+    use the JD gap between successive Jan 1 midnights as days_in_year,
+    so the Julian/Gregorian switch is handled automatically.
+    """
+    year, _month, _day = _jd_to_calendar_date(jd)
+    jd_start = _calendar_date_to_jd(year, 1, 1.0)
+    jd_next_start = _calendar_date_to_jd(year + 1, 1, 1.0)
+    return year + (jd - jd_start) / (jd_next_start - jd_start)
 
 
 def _jd_to_calendar_date(jd: float) -> tuple[int, int, float]:
@@ -198,12 +198,16 @@ def _jd_to_gregorian(jd: float) -> tuple[int, int, float]:
 
 
 def _gregorian_to_jd(year: int, month: int, day: float) -> float:
-    """Gregorian to JD (Meeus formula)."""
+    """(Proleptic) Gregorian calendar to JD."""
     if month <= 2:
         year -= 1
         month += 12
     a = year // 100
-    b = 2 - a + a // 4
+    # Gregorian century correction only for dates after 1582-10-15
+    if year > 1582 or (year == 1582 and (month > 10 or (month == 10 and day >= 15))):
+        b = 2 - a + a // 4
+    else:
+        b = 0  # Julian calendar
     return (int(365.25 * (year + 4716))
             + int(30.6001 * (month + 1))
             + day
