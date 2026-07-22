@@ -1,10 +1,15 @@
 # LunaEph
 
-A pure-Python astrology library — western tropical, Indian sidereal, and
-classical medieval techniques — built on top of
-[taiyin-ephemeris-semi-analytic](https://pypi.org/project/taiyin-ephemeris-semi-analytic/).
+**A lightweight, arcsecond-precision astrology engine for ±3000 years.**
 
-Pure Python.  Zero native C/C++ dependencies (`pip install` and go).  Covers −3000 to +3000.
+Pure Python.  Zero native C/C++ dependencies.  `pip install` and go.
+
+Covers western tropical, Indian sidereal, and classical medieval techniques —
+all from a single `calculate_chart()` call.  Built on
+[taiyin-ephemeris-semi-analytic](https://pypi.org/project/taiyin-ephemeris-semi-analytic/)
+(∼0.2–3.7″ RMS vs DE441) with Vondrák 2011 precession, IAU 2000B nutation,
+WGS84 ellipsoid, and hybrid atmospheric refraction — hardcoded, no runtime
+data files.
 
 ## Quick start
 
