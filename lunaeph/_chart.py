@@ -49,8 +49,9 @@ def _km_to_au(km: float) -> float:
     return km / 149597870.7
 
 
-def _au_to_km(au: float) -> float:
-    return au * 149597870.7
+def _to_xyz(v: tuple[float, ...]) -> tuple[float, float, float]:
+    """Narrow a variable-length tuple to a 3-tuple for the type checker."""
+    return (v[0], v[1], v[2])
 
 
 # ---------------------------------------------------------------------------
@@ -177,11 +178,10 @@ def calculate_chart(
         taiyin_velocity_fn = _vel                          # type: ignore[assignment]
 
     # Earth position + velocity for geocentric conversion
-    # taiyin API: position(jd, body_id), velocity_icrf(jd, body_id)
-    earth_pos_km = taiyin_position_fn(jd_tt, 399)
-    earth_vel_km_per_day = taiyin_velocity_fn(jd_tt, 399)
-    earth_pos_au = tuple(_km_to_au(v) for v in earth_pos_km)
-    earth_vel_au_per_day = tuple(_km_to_au(v) for v in earth_vel_km_per_day)
+    earth_pos_km = _to_xyz(taiyin_position_fn(jd_tt, 399))
+    earth_vel_km_per_day = _to_xyz(taiyin_velocity_fn(jd_tt, 399))
+    earth_pos_au = _to_xyz(tuple(_km_to_au(v) for v in earth_pos_km))
+    earth_vel_au_per_day = _to_xyz(tuple(_km_to_au(v) for v in earth_vel_km_per_day))
 
     # --- precession / nutation ---
     nut = iau2000b_nutation_angles(jd_tt)
@@ -197,8 +197,8 @@ def calculate_chart(
     planets = {}
     for body_id, key, name in _PLANETS:
         # Heliocentric ICRF position (km)
-        helio_pos_km = taiyin_position_fn(jd_tt, body_id)
-        helio_pos_au = tuple(_km_to_au(v) for v in helio_pos_km)
+        helio_pos_km = _to_xyz(taiyin_position_fn(jd_tt, body_id))
+        helio_pos_au = _to_xyz(tuple(_km_to_au(v) for v in helio_pos_km))
 
         # Geocentric
         geo_au = (
@@ -210,8 +210,8 @@ def calculate_chart(
         # Light-time + aberration
         geo_au = apply_light_corrections(
             jd_tt,
-            lambda jd: tuple(_km_to_au(v)
-                             for v in taiyin_position_fn(jd, body_id)),
+            lambda jd: _to_xyz(tuple(_km_to_au(v)
+                                     for v in taiyin_position_fn(jd, body_id))),
             earth_pos_au,
             earth_vel_au_per_day,
             light_time=True,
@@ -219,11 +219,12 @@ def calculate_chart(
         )
 
         # Solar deflection
-        geo_au = apply_solar_deflection(earth_pos_au, (
-            earth_pos_au[0] + geo_au[0],
-            earth_pos_au[1] + geo_au[1],
-            earth_pos_au[2] + geo_au[2],
-        ))
+        geo_au = apply_solar_deflection(
+            earth_pos_au,
+            _to_xyz((earth_pos_au[0] + geo_au[0],
+                     earth_pos_au[1] + geo_au[1],
+                     earth_pos_au[2] + geo_au[2])),
+        )
 
         # ICRF equatorial → J2000 ecliptic → true ecliptic of date
         from ._precession import rotate_equator_to_ecliptic, _J2000_OBLIQUITY_RAD
@@ -249,12 +250,13 @@ def calculate_chart(
         }
 
     # --- longitude rates (for applying/separating) ---
+    from ._precession import rotate_equator_to_ecliptic, _J2000_OBLIQUITY_RAD
     dt = 0.001  # ~1.4 minutes
     body_lons = {k: p["longitude_rad"] for k, p in planets.items()}
     body_rates: dict[str, float] = {}
     for body_id, key, name in _PLANETS:
-        helio_km2 = taiyin_position_fn(jd_tt + dt, body_id)
-        geo_au2 = tuple(_km_to_au(v) for v in helio_km2)
+        helio_km2 = _to_xyz(taiyin_position_fn(jd_tt + dt, body_id))
+        geo_au2 = _to_xyz(tuple(_km_to_au(v) for v in helio_km2))
         geo_au2 = (
             geo_au2[0] - earth_pos_au[0],
             geo_au2[1] - earth_pos_au[1],
