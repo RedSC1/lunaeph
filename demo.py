@@ -70,7 +70,7 @@ for a in chart["aspects"]:
     if a.get("major"):
         b1 = chart.planet(a["body1"])["name"]
         b2 = chart.planet(a["body2"])["name"]
-        arrow = "入" if a.get("applying") else "出"
+        arrow = "→" if a.get("applying") else "←"
         print(f"│ {b1:8s} │ {b2:8s} │ {a['aspect']:16s} │ {a['orb_deg']:.2f}° │ {arrow}    │")
 print("└──────────┴──────────┴──────────────────┴───────┴──────┘")
 
