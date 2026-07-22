@@ -138,6 +138,90 @@ class Chart(dict):
         return [x for x in self["aspects"]
                 if {x["body1"], x["body2"]} == {a, b}]
 
+    # -- synastry / composite / davison --
+
+    def synastry_with(self, other: "Chart") -> list[dict]:
+        """Aspects between this chart's planets and another's."""
+        from ._aspects import find_all_aspects
+        a = self._body_lons
+        b = other._body_lons
+        merged = {}
+        for k, v in a.items():
+            merged[f"a_{k}"] = v
+        for k, v in b.items():
+            merged[f"b_{k}"] = v
+        return find_all_aspects(merged, orbs=self._orbs)
+
+    def composite_with(self, other: "Chart") -> dict[str, float]:
+        """Midpoint composite longitudes for each planet pair."""
+        result = {}
+        for key in self._body_lons:
+            if key in other._body_lons:
+                a = self._body_lons[key]
+                b = other._body_lons[key]
+                diff = (b - a) % (2.0 * math.pi)
+                if diff > math.pi:
+                    diff -= 2.0 * math.pi
+                result[key] = (a + diff / 2.0) % (2.0 * math.pi)
+        return result
+
+    def davison_with(self, other: "Chart") -> "Chart":
+        """Davison relationship chart — midpoint of two dates."""
+        jd = (self["jd_utc"] + other["jd_utc"]) / 2.0
+        obs = self["observer"]
+        from lunaeph._chart import calculate_chart
+        return calculate_chart(
+            *self._jd_to_cal(jd),
+            tz=0.0,
+            latitude_deg=obs["lat_deg"],
+            longitude_deg=obs["lon_deg"],
+        )
+
+    # -- progressions / directions --
+
+    def progressed(self, years: float,
+                   rate: float = 1.0) -> "Chart":
+        """Secondary (rate=1), tertiary (rate=days/month), or minor
+        progressions via time offset.
+
+        *rate* is days of progression per year of life.
+        Default 1.0 → a day for a year (secondary progression).
+        """
+        jd = self["jd_utc"] + years * rate
+        obs = self["observer"]
+        from lunaeph._chart import calculate_chart
+        return calculate_chart(
+            *self._jd_to_cal(jd),
+            tz=0.0,
+            latitude_deg=obs["lat_deg"],
+            longitude_deg=obs["lon_deg"],
+        )
+
+    def solar_arc(self, years: float,
+                  rate_deg_per_year: float = 0.9856) -> dict[str, dict]:
+        """Solar arc directed planets — all longitudes advanced by a fixed
+        arc.  Default rate is Naibod (mean solar motion).
+
+        Returns a dict like chart['planets'] with shifted longitudes.
+        """
+        import copy as _copy
+        arc = math.radians(years * rate_deg_per_year)
+        result = _copy.deepcopy(self["planets"])
+        for key, p in result.items():
+            p["longitude_rad"] = (p["longitude_rad"] + arc) % (2.0 * math.pi)
+            from ._signs import sign_degree_minute
+            s, d, m = sign_degree_minute(p["longitude_rad"])
+            p["sign"] = s.name
+            p["sign_abbrev"] = s.abbrev
+            p["degree"] = d
+            p["minute"] = m
+        return result
+
+    @staticmethod
+    def _jd_to_cal(jd: float) -> tuple[int, int, int, int, int, float]:
+        from ._time import jd_to_calendar
+        return jd_to_calendar(jd)
+
 
 def calculate_chart(
     year: int,
