@@ -46,8 +46,14 @@ def _compute_angle_aspects(
     bodies: dict[str, float],
     angle_deg: float,
     orb_deg: float,
+    body_rates: dict[str, float] | None = None,
 ) -> list[dict]:
-    """Scan all body pairs for a single aspect angle."""
+    """Scan all body pairs for a single aspect angle.
+
+    If *body_rates* (longitude rates in rad/day) is provided, each
+    result includes an ``applying`` field — True when the bodies are
+    moving toward the exact aspect angle (入相).
+    """
     spec = _DEFAULT_SPECS.get(angle_deg)
     name = spec[0] if spec else str(angle_deg)
     major = angle_deg in _ANGLE_MAJOR
@@ -58,7 +64,7 @@ def _compute_angle_aspects(
             sep = angular_separation_deg(bodies[names[i]], bodies[names[j]])
             diff = abs(sep - angle_deg)
             if diff <= orb_deg:
-                results.append({
+                entry = {
                     "body1": names[i],
                     "body2": names[j],
                     "aspect": name,
@@ -66,18 +72,32 @@ def _compute_angle_aspects(
                     "separation_deg": round(sep, 4),
                     "orb_deg": round(diff, 4),
                     "major": major,
-                })
+                }
+                # applying / separating
+                if body_rates:
+                    rate_a = body_rates.get(names[i], 0.0)
+                    rate_b = body_rates.get(names[j], 0.0)
+                    rel_rate = rate_b - rate_a  # positive → b overtakes a
+                    # sep = |lon_b - lon_a|; is the gap shrinking?
+                    current_diff = (bodies[names[j]] - bodies[names[i]]) % TWO_PI
+                    if current_diff > math.pi:
+                        current_diff -= TWO_PI
+                    # If rel_rate and current_diff have opposite signs,
+                    # the gap is closing → applying (入相)
+                    entry["applying"] = (rel_rate * current_diff) < 0
+                results.append(entry)
     return results
 
 
 def find_all_aspects(
     bodies: dict[str, float],
     orbs: dict[float, float] | None = None,
+    body_rates: dict[str, float] | None = None,
 ) -> list[dict]:
     """Compute aspects for all angles in *orbs* (defaults to DEFAULT_ORBS)."""
     table = orbs if orbs is not None else DEFAULT_ORBS
     results = []
     for angle, orb in table.items():
         if orb > 0.0:
-            results.extend(_compute_angle_aspects(bodies, angle, orb))
+            results.extend(_compute_angle_aspects(bodies, angle, orb, body_rates))
     return results

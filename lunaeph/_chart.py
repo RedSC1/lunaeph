@@ -65,10 +65,11 @@ class Chart(dict):
     (in ``_aspects.DEFAULT_ORBS``) is never modified.
     """
 
-    def __init__(self, data: dict):
+    def __init__(self, data: dict, body_rates: dict[str, float]):
         super().__init__(data)
         self._body_lons = {k: p["longitude_rad"]
                            for k, p in data["planets"].items()}
+        self._body_rates = body_rates
         from ._aspects import DEFAULT_ORBS
         self._orbs: dict[float, float] = dict(DEFAULT_ORBS)
 
@@ -90,7 +91,8 @@ class Chart(dict):
         if orb_deg > 0.0:
             from ._aspects import _compute_angle_aspects
             self["aspects"].extend(
-                _compute_angle_aspects(self._body_lons, angle, orb_deg))
+                _compute_angle_aspects(self._body_lons, angle, orb_deg,
+                                       self._body_rates))
         return self
 
     def reset_orb(self, angle: float | str | int) -> "Chart":
@@ -256,9 +258,26 @@ def calculate_chart(
             "minute": min_,
         }
 
-    # --- aspects ---
+    # --- longitude rates (for applying/separating) ---
+    dt = 0.001  # ~1.4 minutes
     body_lons = {k: p["longitude_rad"] for k, p in planets.items()}
-    aspects = find_all_aspects(body_lons)
+    body_rates: dict[str, float] = {}
+    for body_id, key, name in _PLANETS:
+        helio_km2 = taiyin_position_fn(jd_tt + dt, body_id)
+        geo_au2 = tuple(_km_to_au(v) for v in helio_km2)
+        geo_au2 = (
+            geo_au2[0] - earth_pos_au[0],
+            geo_au2[1] - earth_pos_au[1],
+            geo_au2[2] - earth_pos_au[2],
+        )
+        geo_ecl2 = rotate_equator_to_ecliptic(geo_au2, _J2000_OBLIQUITY_RAD)
+        ecl_date2 = j2000_ecliptic_to_date(geo_ecl2, jd_tt + dt)
+        x2, y2, z2 = ecl_date2
+        lon2 = math.atan2(y2, x2) % (2.0 * math.pi)
+        body_rates[key] = (lon2 - body_lons[key]) / dt
+
+    # --- aspects ---
+    aspects = find_all_aspects(body_lons, body_rates=body_rates)
 
     # --- assemble ---
     y, mo, d, h, mi, s = jd_to_calendar(jd_utc)
@@ -283,7 +302,7 @@ def calculate_chart(
         },
         "aspects": aspects,
     }
-    return Chart(data)
+    return Chart(data, body_rates)
 
 
 def _format_angle(rad: float) -> dict:
