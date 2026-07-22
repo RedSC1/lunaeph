@@ -65,8 +65,8 @@ chart.reset_orb(60)          # back to default
 ```python
 from lunaeph import calculate_chart, HouseSystem
 
-chart = calculate_chart(2003, 3, 13, 14, 15, 0, tz=8.0,
-                        latitude_deg=37.45, longitude_deg=118.49,
+chart = calculate_chart(1990, 1, 1, 12, 0,
+                        latitude_deg=51.5, longitude_deg=-0.1,
                         house_system=HouseSystem.KOCH)
 
 for i in range(1, 13):
@@ -87,6 +87,17 @@ b = calculate_chart(1992, 6, 15, 18, 30, latitude_deg=40.7, longitude_deg=-74.0)
 syn = a.synastry_with(b)                # cross-chart aspects + house placements
 comp = a.composite_with(b)              # midpoint composite
 dav = a.davison_with(b, mode="spherical")  # Davison time/space chart
+
+# Synastry cross-aspects (planet-to-planet only, top 5)
+for entry in syn["cross_aspects"][:5]:
+    print(f"{entry['chart_a_body']:8s}─{entry['chart_b_body']:8s}  "
+          f"{entry['aspect']:14s}  {entry['orb_deg']:.2f}°  "
+          f"{'A' if entry.get('applying') else 'S'}")
+#  sun     ─moon      quincunx        1.14°  A
+#  sun     ─mercury   square          4.29°  S
+#  sun     ─mars      biquintile      1.37°  S
+#  sun     ─saturn    square          4.69°  A
+#  sun     ─neptune   semisquare      1.42°  A
 ```
 
 ### Progressions & returns
