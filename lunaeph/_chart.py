@@ -154,20 +154,10 @@ def calculate_chart(
         | None = None,
     taiyin_velocity_fn: Callable[[float, int], tuple[float, float, float]]
         | None = None,
-) -> dict:
+) -> Chart:
     """Calculate a western astrology chart.
 
-    Parameters
-    ----------
-    year .. second: UTC calendar datetime.
-    latitude_deg, longitude_deg: observer geodetic coordinates.
-    house_system: HouseSystem enum (default Placidus).
-    taiyin_position_fn: (body_id, jd_tdb) → (x, y, z) km ICRF.
-        If None, imports taiyin_semi_analytic.position.
-    taiyin_velocity_fn: (body_id, jd_tdb) → (vx, vy, vz) km/day ICRF.
-        If None, imports taiyin_semi_analytic.velocity_icrf.
-
-    Returns: dict with jd, date, observer, planets, houses, aspects.
+    Returns a Chart (dict subclass) with planets, houses, aspects.
     """
     # --- time ---
     # Convert local time → UTC
