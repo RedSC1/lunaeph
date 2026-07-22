@@ -11,7 +11,7 @@ Usage
 'Aries'
 """
 
-from ._chart import calculate_chart
+from ._chart import calculate_chart, Chart
 from ._houses import HouseSystem, calc_houses, calc_placidus_houses
 from ._aspects import find_aspects, angular_separation_deg, ASPECTS
 from ._signs import sign_from_longitude, sign_degree_minute, SIGN_NAMES
@@ -25,6 +25,7 @@ from ._precession import (
 __all__ = [
     # chart
     "calculate_chart",
+    "Chart",
     # houses
     "HouseSystem",
     "calc_houses",

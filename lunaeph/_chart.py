@@ -57,6 +57,44 @@ def _au_to_km(au: float) -> float:
 # Main entry point
 # ---------------------------------------------------------------------------
 
+from ._aspects import ASPECTS as _ASPECT_DEFS
+_ASPECT_ANGLE_TO_NAME = {a.angle_deg: a.name for a in _ASPECT_DEFS}
+# Aliases: "60" → sextile, etc
+_ANGLE_ALIASES: dict[str, float] = {
+    "0": 0.0, "30": 30.0, "36": 36.0, "45": 45.0, "60": 60.0,
+    "72": 72.0, "90": 90.0, "120": 120.0, "135": 135.0,
+    "144": 144.0, "150": 150.0, "180": 180.0,
+}
+
+
+class Chart(dict):
+    """A calculated astrology chart.
+
+    Acts like a dict (chart["planets"], chart["houses"], etc.) with
+    the addition of ``set_orb()`` to tweak aspect orbs after the fact.
+    """
+
+    def __init__(self, data: dict, aspect_orbs: dict[str, float] | None = None):
+        super().__init__(data)
+        self._body_lons = {k: p["longitude_rad"] for k, p in data["planets"].items()}
+        self._aspect_orbs: dict[str, float] = dict(aspect_orbs or {})
+
+    def set_orb(self, angle: float | str | int, orb_deg: float) -> "Chart":
+        """Set the orb (in degrees) for an aspect angle and recompute.
+
+        ``angle`` can be a number (60, 120, etc.) or a string ("60", "120").
+        """
+        if isinstance(angle, str):
+            angle = _ANGLE_ALIASES.get(angle, float(angle))
+        angle = float(angle)
+        name = _ASPECT_ANGLE_TO_NAME.get(angle)
+        if name is None:
+            raise KeyError(f"unknown aspect angle: {angle}")
+        self._aspect_orbs[name] = float(orb_deg)
+        self["aspects"] = find_aspects(self._body_lons, orbs=self._aspect_orbs)
+        return self
+
+
 def calculate_chart(
     year: int,
     month: int,
@@ -179,7 +217,7 @@ def calculate_chart(
 
     # --- assemble ---
     y, mo, d, h, mi, s = jd_to_calendar(jd_utc)
-    return {
+    data = {
         "jd_utc": jd_utc,
         "jd_tt": jd_tt,
         "delta_t_s": delta_t_seconds_from_jd_ut1(jd_utc),
@@ -200,6 +238,7 @@ def calculate_chart(
         },
         "aspects": aspects,
     }
+    return Chart(data, aspect_orbs)
 
 
 def _format_angle(rad: float) -> dict:
